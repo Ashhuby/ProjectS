@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://c5li20sgd0tmd"]
+
+[ext_resource type="Script" uid="uid://c16ksxrccic2s" path="res://MechController.cs" id="2_e4nkn"]
+[ext_resource type="PackedScene" uid="uid://cnbd7amvinnd0" path="res://spider_arm.tscn" id="2_e36w2"]
+
+[node name="Mech" type="Node3D" unique_id=1089200831]
+script = ExtResource("2_e4nkn")
+
+[node name="LeftArms" type="Node3D" parent="." unique_id=1847065557]
+
+[node name="SpiderArm1" parent="LeftArms" unique_id=1187823099 instance=ExtResource("2_e36w2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
+
+[node name="SpiderArm2" parent="LeftArms" unique_id=1969413772 instance=ExtResource("2_e36w2")]
+
+[node name="SpiderArm3" parent="LeftArms" unique_id=299245601 instance=ExtResource("2_e36w2")]
+transform = Transform3D(0.99026805, 0, -0.1391731, 0, 1, 0, 0.1391731, 0, 0.99026805, -10, 0, 0)
+
+[node name="RightArms" type="Node3D" parent="." unique_id=491282591]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -4.811626e-06, 0, -55.03858)
+
+[node name="SpiderArm1" parent="RightArms" unique_id=1417582613 instance=ExtResource("2_e36w2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
+
+[node name="SpiderArm2" parent="RightArms" unique_id=1401031938 instance=ExtResource("2_e36w2")]
+
+[node name="SpiderArm3" parent="RightArms" unique_id=2136663105 instance=ExtResource("2_e36w2")]
+transform = Transform3D(0.99026805, 0, -0.1391731, 0, 1, 0, 0.1391731, 0, 0.99026805, -10, 0, 0)

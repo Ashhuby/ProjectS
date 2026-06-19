@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://dvewtmm6d837k"]
+
+[ext_resource type="PackedScene" uid="uid://c5li20sgd0tmd" path="res://mech.tscn" id="1_k5de2"]
+
+[node name="Node3D" type="Node3D" unique_id=1209939136]
+
+[node name="Mech" parent="." unique_id=1089200831 instance=ExtResource("1_k5de2")]
+transform = Transform3D(1.9106854e-16, -4.371139e-09, 0.1, -0.1, -4.371139e-09, 0, 4.371139e-09, -0.1, -4.371139e-09, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1558622468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.8346786, 0, 1.2375712)
