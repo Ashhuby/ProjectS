@@ -1,0 +1,72 @@
+[gd_scene format=3 uid="uid://bviwb2b6na85l"]
+
+[ext_resource type="PackedScene" uid="uid://b68krturt83vx" path="res://Scenes/PlayerCharacter.tscn" id="1_5cjrv"]
+[ext_resource type="Script" uid="uid://d27s5qyp7hums" path="res://Scripts/CameraController.cs" id="2_j0p05"]
+[ext_resource type="Script" uid="uid://bes6oxai2qeh" path="res://Scripts/HealthBar.cs" id="3_5nsto"]
+[ext_resource type="PackedScene" uid="uid://c3fxxio656dk4" path="res://Scenes/TestDummy.tscn" id="4_gjpho"]
+[ext_resource type="PackedScene" uid="uid://df8yednhkj24i" path="res://Scenes/AttackDummy.tscn" id="5_p70al"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_j0p05"]
+sky_top_color = Color(0.13472614, 0.05889745, 0.20806712, 1)
+sky_horizon_color = Color(0.2623517, 0.24679035, 0.28722942, 1)
+ground_bottom_color = Color(0.13618052, 0.1497638, 0.16235036, 1)
+ground_horizon_color = Color(0.2623517, 0.24679035, 0.28722942, 1)
+energy_multiplier = 2.9
+
+[sub_resource type="Sky" id="Sky_5nsto"]
+sky_material = SubResource("ProceduralSkyMaterial_j0p05")
+
+[sub_resource type="Environment" id="Environment_gjpho"]
+background_mode = 2
+sky = SubResource("Sky_5nsto")
+sdfgi_enabled = true
+glow_enabled = true
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_p70al"]
+
+[node name="World" type="Node3D" unique_id=738672834]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1675840933]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+light_color = Color(0.28819785, 0.13501284, 0.54035735, 1)
+light_volumetric_fog_energy = 8.255
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1087748882]
+environment = SubResource("Environment_gjpho")
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1440630063]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=833481640]
+shape = SubResource("WorldBoundaryShape3D_p70al")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=248395218]
+
+[node name="PlayerCharacter" parent="." unique_id=1981295172 instance=ExtResource("1_5cjrv")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
+
+[node name="CameraRig" type="Node3D" parent="." unique_id=1188148898]
+script = ExtResource("2_j0p05")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig" unique_id=816965744]
+transform = Transform3D(1, 0, 0, 0, 0.90630776, 0.42261827, 0, -0.42261827, 0.90630776, 0.22019613, 1.5, 0)
+collision_mask = 0
+spring_length = 1.5
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D" unique_id=269909597]
+current = true
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=425415270]
+
+[node name="Control" type="Control" parent="HUD" unique_id=1698898626]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("3_5nsto")
+
+[node name="TestDummy" parent="." unique_id=2124357286 instance=ExtResource("4_gjpho")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2484088, 0, -3.2343593)
+
+[node name="AttackDummy" parent="." unique_id=31749238 instance=ExtResource("5_p70al")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8608768, 0.9, -3.4616337)

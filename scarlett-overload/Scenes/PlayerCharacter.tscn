@@ -1,0 +1,179 @@
+[gd_scene format=3 uid="uid://b68krturt83vx"]
+
+[ext_resource type="Script" uid="uid://c4rrw5lw1sq5a" path="res://Scripts/PlayerCharacter.cs" id="1_v7sut"]
+[ext_resource type="PackedScene" uid="uid://dtc4tgkkf8e3i" path="res://Assets/Models/Player.glb" id="2_5gnj7"]
+[ext_resource type="PackedScene" uid="uid://b8077wdh1243" path="res://Scenes/Sword.tscn" id="3_2getf"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="4_mdaju"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_5gnj7"]
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_mdaju"]
+animation = &"Attack1"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_r4x55"]
+animation = &"Attack2"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_wnmxb"]
+animation = &"Death"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_id6tp"]
+animation = &"HitReaction"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_plupy"]
+animation = &"Idle"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_v7sut"]
+animation = &"MoveForward"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_k5f8r"]
+animation = &"Parry"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_5gnj7"]
+animation = &"StartMove"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_2getf"]
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_mdaju"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_r4x55"]
+xfade_time = 0.1
+switch_mode = 2
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_id6tp"]
+xfade_time = 0.2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_5gnj7"]
+xfade_time = 0.15
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_wnmxb"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_k5f8r"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_cl0yw"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_vjvuw"]
+xfade_time = 0.05
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_uvrlg"]
+xfade_time = 0.15
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_fkgr2"]
+xfade_time = 0.15
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_qg2eu"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_lxmjj"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_uk32v"]
+xfade_time = 0.25
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_otte4"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_oqds6"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_xnxt3"]
+xfade_time = 0.15
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_c8bqh"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_vcjqu"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_n8cba"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_0eqq0"]
+xfade_time = 0.15
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_ildqw"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_ba1h1"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_tokpn"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_nufml"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_3euba"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_nev3s"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_jh5di"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_1xtgc"]
+xfade_time = 0.1
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_wnmxb"]
+states/Attack1/node = SubResource("AnimationNodeAnimation_mdaju")
+states/Attack1/position = Vector2(1012, 485)
+states/Attack2/node = SubResource("AnimationNodeAnimation_r4x55")
+states/Attack2/position = Vector2(1203, -45)
+states/Death/node = SubResource("AnimationNodeAnimation_wnmxb")
+states/Death/position = Vector2(1012, -300)
+states/End/position = Vector2(1203, 91)
+states/HitReaction/node = SubResource("AnimationNodeAnimation_id6tp")
+states/HitReaction/position = Vector2(1168, 195)
+states/Idle/node = SubResource("AnimationNodeAnimation_plupy")
+states/Idle/position = Vector2(314, 106)
+states/MoveForward/node = SubResource("AnimationNodeAnimation_v7sut")
+states/MoveForward/position = Vector2(665, 403)
+states/Parry/node = SubResource("AnimationNodeAnimation_k5f8r")
+states/Parry/position = Vector2(665, -138)
+states/Start/position = Vector2(196, 106)
+states/StartMove/node = SubResource("AnimationNodeAnimation_5gnj7")
+states/StartMove/position = Vector2(314, 485)
+transitions = ["Start", "Idle", SubResource("AnimationNodeStateMachineTransition_2getf"), "Idle", "StartMove", SubResource("AnimationNodeStateMachineTransition_mdaju"), "StartMove", "MoveForward", SubResource("AnimationNodeStateMachineTransition_r4x55"), "MoveForward", "Idle", SubResource("AnimationNodeStateMachineTransition_id6tp"), "StartMove", "Idle", SubResource("AnimationNodeStateMachineTransition_5gnj7"), "Idle", "Attack1", SubResource("AnimationNodeStateMachineTransition_wnmxb"), "StartMove", "Attack1", SubResource("AnimationNodeStateMachineTransition_k5f8r"), "MoveForward", "Attack1", SubResource("AnimationNodeStateMachineTransition_cl0yw"), "Attack1", "Attack2", SubResource("AnimationNodeStateMachineTransition_vjvuw"), "Attack1", "Idle", SubResource("AnimationNodeStateMachineTransition_uvrlg"), "Attack2", "Idle", SubResource("AnimationNodeStateMachineTransition_fkgr2"), "Attack1", "HitReaction", SubResource("AnimationNodeStateMachineTransition_qg2eu"), "Attack2", "HitReaction", SubResource("AnimationNodeStateMachineTransition_lxmjj"), "Idle", "HitReaction", SubResource("AnimationNodeStateMachineTransition_uk32v"), "StartMove", "HitReaction", SubResource("AnimationNodeStateMachineTransition_otte4"), "MoveForward", "HitReaction", SubResource("AnimationNodeStateMachineTransition_oqds6"), "HitReaction", "Idle", SubResource("AnimationNodeStateMachineTransition_xnxt3"), "Idle", "Parry", SubResource("AnimationNodeStateMachineTransition_c8bqh"), "StartMove", "Parry", SubResource("AnimationNodeStateMachineTransition_vcjqu"), "MoveForward", "Parry", SubResource("AnimationNodeStateMachineTransition_n8cba"), "Parry", "Idle", SubResource("AnimationNodeStateMachineTransition_0eqq0"), "Parry", "HitReaction", SubResource("AnimationNodeStateMachineTransition_ildqw"), "Idle", "Death", SubResource("AnimationNodeStateMachineTransition_ba1h1"), "StartMove", "Death", SubResource("AnimationNodeStateMachineTransition_tokpn"), "MoveForward", "Death", SubResource("AnimationNodeStateMachineTransition_nufml"), "Attack1", "Death", SubResource("AnimationNodeStateMachineTransition_3euba"), "Attack2", "Death", SubResource("AnimationNodeStateMachineTransition_nev3s"), "Parry", "Death", SubResource("AnimationNodeStateMachineTransition_jh5di"), "HitReaction", "Death", SubResource("AnimationNodeStateMachineTransition_1xtgc")]
+graph_offset = Vector2(222, -310)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_2getf"]
+
+[node name="PlayerCharacter" type="CharacterBody3D" unique_id=1981295172 groups=["Player"]]
+script = ExtResource("1_v7sut")
+
+[node name="PlayerCollision" type="CollisionShape3D" parent="." unique_id=1393565654]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0.752, 0)
+shape = SubResource("CapsuleShape3D_5gnj7")
+
+[node name="Player" parent="." unique_id=1679917352 instance=ExtResource("2_5gnj7")]
+
+[node name="BoneAttachment3D" type="BoneAttachment3D" parent="Player/BodyRig/Skeleton3D" parent_id_path=PackedInt32Array(1679917352, 567830742) index="5" unique_id=2120186752]
+transform = Transform3D(-0.2285812, -0.9726326, 0.041667033, 0.9613669, -0.23226261, -0.14773953, 0.15337397, 0.0062867557, 0.9881479, -0.58736527, 1.5346909, -0.118236765)
+bone_name = "hand.R"
+bone_idx = 29
+
+[node name="Sword" parent="Player/BodyRig/Skeleton3D/BoneAttachment3D" unique_id=2012166597 instance=ExtResource("3_2getf")]
+transform = Transform3D(0.9352101, 0.26849318, -0.23085338, -0.34935355, 0.5933199, -0.72520655, -0.05774268, 0.75886965, 0.6486777, -0.052032113, 0.010850191, -0.07486498)
+
+[node name="AnimationTree" type="AnimationTree" parent="." unique_id=1862904716]
+root_node = NodePath("../Player")
+tree_root = SubResource("AnimationNodeStateMachine_wnmxb")
+anim_player = NodePath("../Player/AnimationPlayer")
+
+[node name="Hurtbox" type="Area3D" parent="." unique_id=1253270710]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("4_mdaju")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox" unique_id=2025118947]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 1.0110722, -0.0047034025)
+shape = SubResource("CapsuleShape3D_2getf")
+debug_color = Color(0.40407577, 0.99053913, 0, 0.41960785)
+
+[editable path="Player"]
