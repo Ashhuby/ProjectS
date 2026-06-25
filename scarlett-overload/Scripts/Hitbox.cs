@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 public partial class Hitbox : Area3D
@@ -7,6 +8,9 @@ public partial class Hitbox : Area3D
     [Export] public float KnockbackForce { get; set; } = 5f;
 
     private readonly HashSet<Hurtbox> _hitTargets = new();
+
+    // Fires when a hit successfully connects — subscribers can trigger game feel effects
+    public event Action<DamageData> HitConnected;
 
     public override void _Ready()
     {
@@ -20,14 +24,17 @@ public partial class Hitbox : Area3D
         if (area is Hurtbox hurtbox && _hitTargets.Add(hurtbox))
         {
             var knockbackDir = (hurtbox.GlobalPosition - GlobalPosition).Normalized();
+            var hitPos = (GlobalPosition + hurtbox.GlobalPosition) / 2f;
             var data = new DamageData
             {
                 Amount = Damage,
                 KnockbackDirection = knockbackDir * KnockbackForce,
+                HitPosition = hitPos,
                 Source = FindOwnerCharacter(),
                 Type = AttackType.Light
             };
             hurtbox.ReceiveDamage(data);
+            HitConnected?.Invoke(data);
         }
     }
 

@@ -58,14 +58,14 @@ tracks/7/enabled = true
 tracks/7/path = NodePath("BodyRig/Skeleton3D:upper_arm.L")
 tracks/7/interp = 0
 tracks/7/loop_wrap = true
-tracks/7/keys = PackedFloat32Array(0, 1, 0.41963074, -0.75572693, 0.39153215, 0.31541952)
+tracks/7/keys = PackedFloat32Array(0, 1, 0.072100654, 0.7301962, -0.16213426, 0.6597936)
 tracks/8/type = "rotation_3d"
 tracks/8/imported = true
 tracks/8/enabled = true
 tracks/8/path = NodePath("BodyRig/Skeleton3D:forearm.L")
 tracks/8/interp = 0
 tracks/8/loop_wrap = true
-tracks/8/keys = PackedFloat32Array(0, 1, 0.10815113, -0.0722353, 0.3768071, 0.91711605)
+tracks/8/keys = PackedFloat32Array(0, 1, 0.0013887361, -0.05756795, -0.0037731624, 0.9983335)
 tracks/9/type = "rotation_3d"
 tracks/9/imported = true
 tracks/9/enabled = true
@@ -269,7 +269,7 @@ tracks/37/path = NodePath("..")
 tracks/37/interp = 1
 tracks/37/loop_wrap = true
 tracks/37/keys = {
-"times": PackedFloat32Array(0.023936966, 0.36330405, 0.41649073),
+"times": PackedFloat32Array(0.0006449595, 0.36330405, 0.41649073),
 "transitions": PackedFloat32Array(1, 1, 1),
 "values": [{
 "args": [],

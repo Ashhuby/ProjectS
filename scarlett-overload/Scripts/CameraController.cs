@@ -31,11 +31,18 @@ public partial class CameraController : Node3D
     public bool IsLockedOn => _isLockedOn;
     public Node3D LockTarget => _lockTarget;
 
+    // Camera shake
+    private float _shakeIntensity = 0f;
+    private float _shakeDuration = 0f;
+    private float _shakeTimer = 0f;
+    private Vector3 _cameraRestPosition;
+
     public override void _Ready()
     {
         _target = GetParent().GetNode<Node3D>("PlayerCharacter");
         _springArm = GetNode<SpringArm3D>("SpringArm3D");
         _camera = _springArm.GetNode<Camera3D>("Camera3D");
+        _cameraRestPosition = _camera.Position;
 
         Input.MouseMode = Input.MouseModeEnum.Captured;
 
@@ -130,6 +137,23 @@ public partial class CameraController : Node3D
         else
         {
             UpdateFreeLookCamera(dt);
+        }
+
+        // Camera shake
+        if (_shakeTimer > 0f)
+        {
+            _shakeTimer -= dt;
+            float t = _shakeTimer / _shakeDuration;
+            float current = _shakeIntensity * t * t;
+            _camera.Position = _cameraRestPosition + new Vector3(
+                (float)GD.RandRange(-current, current),
+                (float)GD.RandRange(-current, current),
+                0f
+            );
+        }
+        else if (_camera.Position != _cameraRestPosition)
+        {
+            _camera.Position = _cameraRestPosition;
         }
 
         // Follow player — always
@@ -308,5 +332,16 @@ public partial class CameraController : Node3D
         Vector3 rot = _springArm.Rotation;
         rot.X = Mathf.Clamp(rot.X, Mathf.DegToRad(MinPitch), Mathf.DegToRad(MaxPitch));
         _springArm.Rotation = rot;
+    }
+
+    public void Shake(float intensity, float duration)
+    {
+        // Only override if new shake is stronger than remaining
+        if (intensity > _shakeIntensity * (_shakeTimer / Mathf.Max(_shakeDuration, 0.001f)))
+        {
+            _shakeIntensity = intensity;
+            _shakeDuration = duration;
+            _shakeTimer = duration;
+        }
     }
 }

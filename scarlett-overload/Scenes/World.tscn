@@ -7,11 +7,12 @@
 [ext_resource type="PackedScene" uid="uid://df8yednhkj24i" path="res://Scenes/AttackDummy.tscn" id="5_p70al"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_j0p05"]
-sky_top_color = Color(0.13472614, 0.05889745, 0.20806712, 1)
-sky_horizon_color = Color(0.2623517, 0.24679035, 0.28722942, 1)
+sky_top_color = Color(0.04042223, 0.013346354, 0.026696343, 1)
+sky_horizon_color = Color(0.11163219, 0.10315203, 0.1243275, 1)
 ground_bottom_color = Color(0.13618052, 0.1497638, 0.16235036, 1)
 ground_horizon_color = Color(0.2623517, 0.24679035, 0.28722942, 1)
-energy_multiplier = 2.9
+sun_angle_max = 5.0
+energy_multiplier = 0.1
 
 [sub_resource type="Sky" id="Sky_5nsto"]
 sky_material = SubResource("ProceduralSkyMaterial_j0p05")
@@ -19,8 +20,12 @@ sky_material = SubResource("ProceduralSkyMaterial_j0p05")
 [sub_resource type="Environment" id="Environment_gjpho"]
 background_mode = 2
 sky = SubResource("Sky_5nsto")
-sdfgi_enabled = true
 glow_enabled = true
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.0058
+volumetric_fog_albedo = Color(0.09487241, 0.2427859, 0.30044308, 1)
+volumetric_fog_emission = Color(0.37634864, 0.1417534, 0.040469706, 1)
+volumetric_fog_length = 0.01
 
 [sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_p70al"]
 
@@ -28,8 +33,8 @@ glow_enabled = true
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1675840933]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
-light_color = Color(0.28819785, 0.13501284, 0.54035735, 1)
-light_volumetric_fog_energy = 8.255
+light_color = Color(0.22812742, 0.13179827, 0, 1)
+light_angular_distance = 2.02
 shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1087748882]

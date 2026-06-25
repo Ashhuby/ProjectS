@@ -8,6 +8,7 @@ public partial class AttackDummy : CharacterBody3D
     [Export] public float AttackActiveDuration = 0.25f;
     [Export] public float RecoveryDuration = 0.4f;
     [Export] public float RespawnDelay = 3.0f;
+    [Export] public float KnockbackDecay = 10f;
 
     private MeshInstance3D _mesh;
     private StandardMaterial3D _material;
@@ -15,6 +16,7 @@ public partial class AttackDummy : CharacterBody3D
     private Hurtbox _hurtbox;
     private int _currentHealth;
     private bool _isDead = false;
+    private Vector3 _knockbackVelocity = Vector3.Zero;
 
     // Warning indicator above head
     private MeshInstance3D _warningIndicator;
@@ -73,9 +75,27 @@ public partial class AttackDummy : CharacterBody3D
 
     public override void _PhysicsProcess(double delta)
     {
+        float dt = (float)delta;
+
+        // Knockback physics
+        if (_knockbackVelocity.LengthSquared() > 0.01f)
+        {
+            Velocity = new Vector3(_knockbackVelocity.X, Velocity.Y, _knockbackVelocity.Z);
+            _knockbackVelocity = _knockbackVelocity.Lerp(Vector3.Zero, KnockbackDecay * dt);
+        }
+        else
+        {
+            Velocity = new Vector3(0f, Velocity.Y, 0f);
+            _knockbackVelocity = Vector3.Zero;
+        }
+
+        if (!IsOnFloor())
+            Velocity = new Vector3(Velocity.X, Velocity.Y - 9.8f * dt, Velocity.Z);
+
+        MoveAndSlide();
+
         if (_state == DummyState.Dead) return;
 
-        float dt = (float)delta;
         _stateTimer -= dt;
 
         switch (_state)
@@ -166,6 +186,7 @@ public partial class AttackDummy : CharacterBody3D
         _currentHealth = Mathf.Max(_currentHealth - data.Amount, 0);
         GD.Print($"AttackDummy hit for {data.Amount}. HP: {_currentHealth}/{MaxHealth}");
 
+        _knockbackVelocity = data.KnockbackDirection;
         FlashWhite();
 
         if (_currentHealth <= 0)
@@ -187,6 +208,7 @@ public partial class AttackDummy : CharacterBody3D
         _isDead = true;
         _state = DummyState.Dead;
         _attackHitbox.Deactivate();
+        _knockbackVelocity = Vector3.Zero;
         _warningIndicator.Visible = false;
         _attackFlash.LightEnergy = 0f;
         _hurtbox.SetDeferred("monitorable", false);
@@ -214,6 +236,7 @@ public partial class AttackDummy : CharacterBody3D
         _material.AlbedoColor = new Color(0.6f, 0.15f, 0.15f);
         _warningIndicator.Visible = false;
         _attackFlash.LightEnergy = 0f;
+        _knockbackVelocity = Vector3.Zero;
         _hurtbox.SetDeferred("monitorable", true);
         _attackHitbox.Deactivate();
 

@@ -19,6 +19,12 @@ public partial class PlayerCharacter : CharacterBody3D
     [Export] public float Gravity = 9.8f;
     [Export] public int MaxHealth = 100;
     [Export] public float ComboWindowDuration = 0.2f;
+    [Export] public float HitStopDuration = 0.06f;
+    [Export] public float HitStopTimeScale = 0.05f;
+    [Export] public float DealHitShakeIntensity = 0.15f;
+    [Export] public float TakeHitShakeIntensity = 0.25f;
+    [Export] public float KnockbackDecay = 12f;
+    [Export] public Vector3 SwordTipOffset = new Vector3(0f, 0f, -0.8f);
 
     // Node references
     private AnimationTree _animTree;
@@ -26,6 +32,8 @@ public partial class PlayerCharacter : CharacterBody3D
     private Hurtbox _hurtbox;
     private Hitbox _swordHitbox;
     private CameraController _cameraController;
+    private Node3D _swordNode;
+    private SwordTrail _swordTrail;
 
     // Combat state
     private CombatState _combatState = CombatState.Free;
@@ -38,6 +46,9 @@ public partial class PlayerCharacter : CharacterBody3D
     // Combo window — grace period after attack animation ends
     private bool _inComboWindow = false;
     private float _comboWindowTimer = 0f;
+
+    // Knockback
+    private Vector3 _knockbackVelocity = Vector3.Zero;
 
     // Debug parry indicator
     private MeshInstance3D _parryIndicator;
@@ -58,6 +69,13 @@ public partial class PlayerCharacter : CharacterBody3D
         // Adjust this path to match your actual scene tree.
         // Player → BodyRig → Skeleton3D → BoneAttachment3D → Sword → Hitbox
         _swordHitbox = GetNode<Hitbox>("Player/BodyRig/Skeleton3D/BoneAttachment3D/Sword/Hitbox");
+        _swordHitbox.HitConnected += OnHitDealt;
+
+        // Sword trail — mesh ribbon attached to player, tracks sword tip
+        _swordNode = GetNode<Node3D>("Player/BodyRig/Skeleton3D/BoneAttachment3D/Sword");
+        _swordTrail = new SwordTrail();
+        _swordTrail.Initialize(_swordNode, SwordTipOffset);
+        AddChild(_swordTrail);
 
         // Camera controller for lock-on
         _cameraController = GetParent().GetNode<CameraController>("CameraRig");
@@ -160,9 +178,12 @@ public partial class PlayerCharacter : CharacterBody3D
         }
         else
         {
-            // Kill horizontal movement during combat states
-            velocity.X = Mathf.MoveToward(velocity.X, 0f, Acceleration * dt);
-            velocity.Z = Mathf.MoveToward(velocity.Z, 0f, Acceleration * dt);
+            // Apply knockback, decaying over time
+            velocity.X = _knockbackVelocity.X;
+            velocity.Z = _knockbackVelocity.Z;
+            _knockbackVelocity = _knockbackVelocity.Lerp(Vector3.Zero, KnockbackDecay * dt);
+            if (_knockbackVelocity.LengthSquared() < 0.01f)
+                _knockbackVelocity = Vector3.Zero;
 
             // Combo window countdown
             if (_inComboWindow)
@@ -267,6 +288,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _inComboWindow = false;
         _parryIndicator.Visible = false;
         _swordHitbox.Deactivate();
+        _swordTrail.StopEmitting();
         _stateMachine.Travel("HitReaction");
         GD.Print("[Combat] Stunned");
     }
@@ -280,6 +302,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _inComboWindow = false;
         _parryIndicator.Visible = false;
         _swordHitbox.Deactivate();
+        _swordTrail.StopEmitting();
         _stateMachine.Travel("Death");
         GD.Print("[Combat] Dead");
 
@@ -295,11 +318,19 @@ public partial class PlayerCharacter : CharacterBody3D
         _attackBuffered = false;
         _isParryActive = false;
         _inComboWindow = false;
+        _knockbackVelocity = Vector3.Zero;
         _parryIndicator.Visible = false;
         _stateMachine.Travel("Idle");
     }
 
     // ── Damage Handling ───────────────────────────────────────────────
+
+    private void OnHitDealt(DamageData data)
+    {
+        ApplyHitStop();
+        _cameraController?.Shake(DealHitShakeIntensity, 0.15f);
+        GameVFX.SpawnHitImpact(this, data.HitPosition, data.KnockbackDirection);
+    }
 
     private void OnDamageReceived(DamageData data)
     {
@@ -316,6 +347,15 @@ public partial class PlayerCharacter : CharacterBody3D
         _currentHealth = Mathf.Max(_currentHealth - data.Amount, 0);
         HealthChanged?.Invoke(_currentHealth, MaxHealth);
 
+        ApplyHitStop();
+        _cameraController?.Shake(TakeHitShakeIntensity, 0.2f);
+
+        // Damage screen flash — brief red
+        GameVFX.SpawnScreenFlash(this, new Color(1f, 0.1f, 0.1f, 0.25f), 0.1f);
+
+        // Knockback
+        _knockbackVelocity = data.KnockbackDirection;
+
         GD.Print($"[Combat] HP: {_currentHealth}/{MaxHealth}");
 
         if (_currentHealth <= 0)
@@ -331,7 +371,20 @@ public partial class PlayerCharacter : CharacterBody3D
     private void OnParrySuccess(DamageData data)
     {
         GD.Print($"[Combat] PARRY SUCCESS against {data.Source?.Name}");
+        _cameraController?.Shake(DealHitShakeIntensity, 0.1f);
+        ApplyHitStop();
+        var parryPos = GlobalPosition + new Vector3(0f, 1.2f, 0f);
+        GameVFX.SpawnParryImpact(this, parryPos);
         // TODO: notify the attacker to enter their Stunned state
+    }
+
+    private void ApplyHitStop()
+    {
+        Engine.TimeScale = HitStopTimeScale;
+        GetTree().CreateTimer(HitStopDuration, true, false, true).Timeout += () =>
+        {
+            Engine.TimeScale = 1.0;
+        };
     }
 
     // ── Animation Callback Methods ────────────────────────────────────
@@ -340,23 +393,23 @@ public partial class PlayerCharacter : CharacterBody3D
     public void OnAttackHitboxActivate()
     {
         _swordHitbox.Activate();
+        _swordTrail.StartEmitting();
     }
 
     public void OnAttackHitboxDeactivate()
     {
         _swordHitbox.Deactivate();
+        _swordTrail.StopEmitting();
     }
 
     public void OnAttackAnimationFinished()
     {
         if (_attackBuffered && _comboStep < MaxComboSteps - 1)
         {
-            // Input was buffered during the swing — chain immediately
             StartAttack(_comboStep + 1);
         }
         else if (_comboStep < MaxComboSteps - 1)
         {
-            // No buffer yet — open a grace window for late input
             _inComboWindow = true;
             _comboWindowTimer = ComboWindowDuration;
             GD.Print("[Combat] Combo window open");
