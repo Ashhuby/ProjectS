@@ -1,3 +1,5 @@
+using Game.Autoloads;
+using Game.Core.Data;
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -13,11 +15,24 @@ public enum CombatState
 
 public partial class PlayerCharacter : CharacterBody3D
 {
+    [ExportGroup("Movement")]
     [Export] public float Speed = 5.0f;
     [Export] public float Acceleration = 25.0f;
     [Export] public float RotationSpeed = 10.0f;
     [Export] public float Gravity = 9.8f;
+
+    [ExportGroup("Health")]
     [Export] public int MaxHealth = 100;
+
+    [ExportGroup("Weapon")]
+    /// <summary>
+    /// Assign a WeaponData .tres resource here. The attack chain defines
+    /// damage, knockback, hitstop, and shake per combo step.
+    /// Leave null to use the fallback values below.
+    /// </summary>
+    [Export] public WeaponData Weapon { get; set; }
+
+    [ExportGroup("Combat Fallbacks")]
     [Export] public float ComboWindowDuration = 0.2f;
     [Export] public float HitStopDuration = 0.06f;
     [Export] public float HitStopTimeScale = 0.05f;
@@ -38,10 +53,15 @@ public partial class PlayerCharacter : CharacterBody3D
     // Combat state
     private CombatState _combatState = CombatState.Free;
     private int _comboStep = 0;
-    private const int MaxComboSteps = 2;
     private bool _attackBuffered = false;
     private bool _isParryActive = false;
     private int _currentHealth;
+
+    // Current attack data — set per combo step from WeaponData
+    private AttackData _currentAttack;
+
+    // Combo steps — driven by weapon's attack chain length, fallback to 2
+    private int MaxComboSteps => Weapon?.MaxComboSteps ?? 2;
 
     // Combo window — grace period after attack animation ends
     private bool _inComboWindow = false;
@@ -66,18 +86,25 @@ public partial class PlayerCharacter : CharacterBody3D
         _hurtbox = GetNode<Hurtbox>("Hurtbox");
         _hurtbox.DamageReceived += OnDamageReceived;
 
-        // Adjust this path to match your actual scene tree.
-        // Player → BodyRig → Skeleton3D → BoneAttachment3D → Sword → Hitbox
         _swordHitbox = GetNode<Hitbox>("Player/BodyRig/Skeleton3D/BoneAttachment3D/Sword/Hitbox");
         _swordHitbox.HitConnected += OnHitDealt;
 
-        // Sword trail — mesh ribbon attached to player, tracks sword tip
+        // Sword trail
         _swordNode = GetNode<Node3D>("Player/BodyRig/Skeleton3D/BoneAttachment3D/Sword");
         _swordTrail = new SwordTrail();
+
+        // Trail visuals from weapon data if available
+        if (Weapon != null)
+        {
+            _swordTrail.TipColor = Weapon.TrailTipColor;
+            _swordTrail.BaseColor = Weapon.TrailBaseColor;
+            _swordTrail.MaxPoints = Weapon.TrailMaxPoints;
+            _swordTrail.Jitter = Weapon.TrailJitter;
+        }
+
         _swordTrail.Initialize(_swordNode, SwordTipOffset);
         AddChild(_swordTrail);
 
-        // Camera controller for lock-on
         _cameraController = GetParent().GetNode<CameraController>("CameraRig");
 
         // Debug: green sphere above head shows when parry window is active
@@ -97,6 +124,11 @@ public partial class PlayerCharacter : CharacterBody3D
         AddChild(_parryIndicator);
 
         HealthChanged?.Invoke(_currentHealth, MaxHealth);
+
+        if (Weapon != null)
+            GD.Print($"[Combat] Weapon loaded: {Weapon.WeaponName} ({MaxComboSteps} combo steps)");
+        else
+            GD.Print("[Combat] No weapon assigned — using fallback values");
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -118,13 +150,11 @@ public partial class PlayerCharacter : CharacterBody3D
         float dt = (float)delta;
         Vector3 velocity = Velocity;
 
-        // Gravity always applies
         if (!IsOnFloor())
         {
             velocity.Y -= Gravity * dt;
         }
 
-        // Movement only in Free state
         if (_combatState == CombatState.Free)
         {
             Vector2 inputDir = Input.GetVector("move_left", "move_right", "move_forward", "move_back");
@@ -178,14 +208,12 @@ public partial class PlayerCharacter : CharacterBody3D
         }
         else
         {
-            // Apply knockback, decaying over time
             velocity.X = _knockbackVelocity.X;
             velocity.Z = _knockbackVelocity.Z;
             _knockbackVelocity = _knockbackVelocity.Lerp(Vector3.Zero, KnockbackDecay * dt);
             if (_knockbackVelocity.LengthSquared() < 0.01f)
                 _knockbackVelocity = Vector3.Zero;
 
-            // Combo window countdown
             if (_inComboWindow)
             {
                 _comboWindowTimer -= dt;
@@ -197,7 +225,6 @@ public partial class PlayerCharacter : CharacterBody3D
             }
         }
 
-        // Lock-on: face the target regardless of combat state
         if (_combatState != CombatState.Dead && _cameraController != null
             && _cameraController.IsLockedOn && _cameraController.LockTarget != null)
         {
@@ -231,13 +258,11 @@ public partial class PlayerCharacter : CharacterBody3D
             case CombatState.Attacking:
                 if (_inComboWindow && _comboStep < MaxComboSteps - 1)
                 {
-                    // Late input during grace period — chain immediately
                     _inComboWindow = false;
                     StartAttack(_comboStep + 1);
                 }
                 else if (_comboStep < MaxComboSteps - 1)
                 {
-                    // Buffer during the animation
                     _attackBuffered = true;
                 }
                 break;
@@ -259,6 +284,9 @@ public partial class PlayerCharacter : CharacterBody3D
         _attackBuffered = false;
         _inComboWindow = false;
 
+        // Pull attack data from weapon resource (null = use hitbox defaults)
+        _currentAttack = Weapon?.GetAttack(step);
+
         string animState = step switch
         {
             0 => "Attack1",
@@ -266,7 +294,9 @@ public partial class PlayerCharacter : CharacterBody3D
             _ => "Attack1"
         };
         _stateMachine.Travel(animState);
-        GD.Print($"[Combat] Attack{step + 1}");
+
+        string attackName = _currentAttack?.AttackName ?? $"Attack{step + 1}";
+        GD.Print($"[Combat] {attackName} (step {step + 1}/{MaxComboSteps})");
     }
 
     private void EnterParry()
@@ -275,6 +305,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _attackBuffered = false;
         _isParryActive = false;
         _inComboWindow = false;
+        _currentAttack = null;
         _stateMachine.Travel("Parry");
         GD.Print("[Combat] Parry started");
     }
@@ -286,6 +317,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _comboStep = 0;
         _isParryActive = false;
         _inComboWindow = false;
+        _currentAttack = null;
         _parryIndicator.Visible = false;
         _swordHitbox.Deactivate();
         _swordTrail.StopEmitting();
@@ -300,15 +332,17 @@ public partial class PlayerCharacter : CharacterBody3D
         _comboStep = 0;
         _isParryActive = false;
         _inComboWindow = false;
+        _currentAttack = null;
         _parryIndicator.Visible = false;
         _swordHitbox.Deactivate();
         _swordTrail.StopEmitting();
         _stateMachine.Travel("Death");
         GD.Print("[Combat] Dead");
 
-        // Release lock-on on death
         if (_cameraController != null && _cameraController.IsLockedOn)
             _cameraController.DisengageLock();
+
+        EventBus.Instance?.EmitEntityDied(this);
     }
 
     private void ReturnToFree()
@@ -318,6 +352,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _attackBuffered = false;
         _isParryActive = false;
         _inComboWindow = false;
+        _currentAttack = null;
         _knockbackVelocity = Vector3.Zero;
         _parryIndicator.Visible = false;
         _stateMachine.Travel("Idle");
@@ -327,9 +362,17 @@ public partial class PlayerCharacter : CharacterBody3D
 
     private void OnHitDealt(DamageData data)
     {
-        ApplyHitStop();
-        _cameraController?.Shake(DealHitShakeIntensity, 0.15f);
+        // Game feel values from AttackData, falling back to [Export] defaults
+        float stopDur = _currentAttack?.HitStopDuration ?? HitStopDuration;
+        float stopScale = _currentAttack?.HitStopTimeScale ?? HitStopTimeScale;
+        float shakeStr = _currentAttack?.CameraShakeIntensity ?? DealHitShakeIntensity;
+        float shakeDur = _currentAttack?.CameraShakeDuration ?? 0.15f;
+
+        ApplyHitStop(stopDur, stopScale);
+        _cameraController?.Shake(shakeStr, shakeDur);
         GameVFX.SpawnHitImpact(this, data.HitPosition, data.KnockbackDirection);
+
+        EventBus.Instance?.EmitHitLanded(data);
     }
 
     private void OnDamageReceived(DamageData data)
@@ -347,13 +390,11 @@ public partial class PlayerCharacter : CharacterBody3D
         _currentHealth = Mathf.Max(_currentHealth - data.Amount, 0);
         HealthChanged?.Invoke(_currentHealth, MaxHealth);
 
-        ApplyHitStop();
+        ApplyHitStop(HitStopDuration, HitStopTimeScale);
         _cameraController?.Shake(TakeHitShakeIntensity, 0.2f);
 
-        // Damage screen flash — brief red
         GameVFX.SpawnScreenFlash(this, new Color(1f, 0.1f, 0.1f, 0.25f), 0.1f);
 
-        // Knockback
         _knockbackVelocity = data.KnockbackDirection;
 
         GD.Print($"[Combat] HP: {_currentHealth}/{MaxHealth}");
@@ -372,16 +413,17 @@ public partial class PlayerCharacter : CharacterBody3D
     {
         GD.Print($"[Combat] PARRY SUCCESS against {data.Source?.Name}");
         _cameraController?.Shake(DealHitShakeIntensity, 0.1f);
-        ApplyHitStop();
+        ApplyHitStop(HitStopDuration, HitStopTimeScale);
         var parryPos = GlobalPosition + new Vector3(0f, 1.2f, 0f);
         GameVFX.SpawnParryImpact(this, parryPos);
-        // TODO: notify the attacker to enter their Stunned state
+
+        EventBus.Instance?.EmitParrySucceeded(data);
     }
 
-    private void ApplyHitStop()
+    private void ApplyHitStop(float duration, float timeScale)
     {
-        Engine.TimeScale = HitStopTimeScale;
-        GetTree().CreateTimer(HitStopDuration, true, false, true).Timeout += () =>
+        Engine.TimeScale = timeScale;
+        GetTree().CreateTimer(duration, true, false, true).Timeout += () =>
         {
             Engine.TimeScale = 1.0;
         };
@@ -392,7 +434,7 @@ public partial class PlayerCharacter : CharacterBody3D
 
     public void OnAttackHitboxActivate()
     {
-        _swordHitbox.Activate();
+        _swordHitbox.Activate(_currentAttack);
         _swordTrail.StartEmitting();
     }
 
@@ -411,7 +453,7 @@ public partial class PlayerCharacter : CharacterBody3D
         else if (_comboStep < MaxComboSteps - 1)
         {
             _inComboWindow = true;
-            _comboWindowTimer = ComboWindowDuration;
+            _comboWindowTimer = _currentAttack?.ComboWindowDuration ?? ComboWindowDuration;
             GD.Print("[Combat] Combo window open");
         }
         else

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3 uid="uid://cadai8vmnx5tc"]
+
+[ext_resource type="Resource" uid="uid://bi40x2tmhuu07" path="res://Resources/Attacks/PlayerSlash1.tres" id="1_74kw0"]
+[ext_resource type="Script" uid="uid://betgqqbe0c657" path="res://Core/Data/WeaponData.cs" id="1_t55m4"]
+[ext_resource type="Resource" uid="uid://8mtl3gy4a8t3" path="res://Resources/Attacks/PlayerSlash2.tres" id="2_3e3up"]
+
+[resource]
+script = ExtResource("1_t55m4")
+WeaponName = "Rapier"
+AttackChain = [ExtResource("1_74kw0"), ExtResource("2_3e3up")]
+TrailTipColor = Color(1, 0.97633153, 0.9058309, 0.95000005)
+TrailBaseColor = Color(1, 0.79595864, 0.48677072, 0.6)
+metadata/_custom_type_script = "uid://betgqqbe0c657"

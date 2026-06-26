@@ -1,101 +1,124 @@
+using Game.Characters;
+using Game.Core.Data;
+using Game.Core.Interfaces;
 using Godot;
 
-public partial class AttackDummy : CharacterBody3D
+/// <summary>
+/// Aggressive target dummy with a timed attack cycle.
+/// Telegraph → Attack → Recovery → Idle → repeat.
+///
+/// All health, knockback, gravity, and damage pipeline logic
+/// lives in CharacterBase. This class only owns:
+///   - The attack FSM
+///   - Telegraph visuals (warning indicator, body pulse)
+///   - Visual feedback (flash, attack light)
+/// </summary>
+public partial class AttackDummy : CharacterBase, ILockOnTarget
 {
-    [Export] public int MaxHealth = 100;
-    [Export] public float AttackInterval = 2.5f;
-    [Export] public float TelegraphDuration = 1.0f;
-    [Export] public float AttackActiveDuration = 0.25f;
-    [Export] public float RecoveryDuration = 0.4f;
-    [Export] public float RespawnDelay = 3.0f;
-    [Export] public float KnockbackDecay = 10f;
+    [ExportGroup("Attack Cycle")]
+    [Export] public float AttackInterval { get; set; } = 2.5f;
+    [Export] public float TelegraphDuration { get; set; } = 1.0f;
+    [Export] public float AttackActiveDuration { get; set; } = 0.25f;
+    [Export] public float RecoveryDuration { get; set; } = 0.4f;
 
     private MeshInstance3D _mesh;
     private StandardMaterial3D _material;
     private Hitbox _attackHitbox;
-    private Hurtbox _hurtbox;
-    private int _currentHealth;
-    private bool _isDead = false;
-    private Vector3 _knockbackVelocity = Vector3.Zero;
-
-    // Warning indicator above head
-    private MeshInstance3D _warningIndicator;
-    private StandardMaterial3D _warningMat;
-
-    // Attack flash light
-    private OmniLight3D _attackFlash;
-
-    private enum DummyState { Idle, Telegraph, Attacking, Recovery, Dead }
-    private DummyState _state = DummyState.Idle;
-    private float _stateTimer;
     private Vector3 _baseScale;
 
-    public override void _Ready()
+    // Warning indicator
+    private MeshInstance3D _warningIndicator;
+    private StandardMaterial3D _warningMat;
+    private OmniLight3D _attackFlash;
+
+    // FSM
+    private enum DummyState { Idle, Telegraph, Attacking, Recovery }
+    private DummyState _state = DummyState.Idle;
+    private float _stateTimer;
+
+    // ── ITargetable ───────────────────────────────────────────────────
+    public Vector3 TargetPosition => GlobalPosition + new Vector3(0f, 1f, 0f);
+    public bool IsValidTarget => !IsDead;
+
+    // ── ILockOnTarget ─────────────────────────────────────────────────
+    public string TargetName => "Attack Dummy";
+
+    // ══════════════════════════════════════════════════════════════════
+    //  CHARACTERBASE OVERRIDES
+    // ══════════════════════════════════════════════════════════════════
+
+    protected override void Initialize()
     {
+        Stats ??= new CharacterStats
+        {
+            MaxHealth = 100,
+            KnockbackDecay = 10f,
+            RespawnDelay = 3f
+        };
+
         _mesh = GetNode<MeshInstance3D>("MeshInstance3D");
         _attackHitbox = GetNode<Hitbox>("AttackHitbox");
-        _hurtbox = GetNode<Hurtbox>("Hurtbox");
+        _attackHitbox.Deactivate();
 
-        _material = new StandardMaterial3D();
-        _material.AlbedoColor = new Color(0.6f, 0.15f, 0.15f);
+        _material = new StandardMaterial3D
+        {
+            AlbedoColor = new Color(0.6f, 0.15f, 0.15f)
+        };
         _mesh.MaterialOverride = _material;
         _baseScale = _mesh.Scale;
 
-        _attackHitbox.Deactivate();
-        _hurtbox.DamageReceived += OnDamageReceived;
+        CreateWarningIndicator();
+        CreateAttackFlash();
 
-        // Warning sphere above head — shows during telegraph
-        _warningIndicator = new MeshInstance3D();
-        var sphere = new SphereMesh();
-        sphere.Radius = 0.2f;
-        sphere.Height = 0.4f;
-        _warningIndicator.Mesh = sphere;
-        _warningMat = new StandardMaterial3D();
-        _warningMat.AlbedoColor = new Color(1f, 0.8f, 0f);
-        _warningMat.EmissionEnabled = true;
-        _warningMat.Emission = new Color(1f, 0.8f, 0f);
-        _warningMat.EmissionEnergyMultiplier = 3f;
-        _warningIndicator.MaterialOverride = _warningMat;
-        _warningIndicator.Position = new Vector3(0f, 2.5f, 0f);
-        _warningIndicator.Visible = false;
-        AddChild(_warningIndicator);
-
-        // Flash light for the attack moment
-        _attackFlash = new OmniLight3D();
-        _attackFlash.LightColor = new Color(1f, 0.3f, 0.1f);
-        _attackFlash.LightEnergy = 0f;
-        _attackFlash.OmniRange = 4f;
-        _attackFlash.Position = new Vector3(0f, 1f, 0f);
-        AddChild(_attackFlash);
-
-        _currentHealth = MaxHealth;
         _stateTimer = AttackInterval;
         _state = DummyState.Idle;
     }
 
-    public override void _PhysicsProcess(double delta)
+    /// <summary>
+    /// Tick the attack FSM every physics frame (after MoveAndSlide).
+    /// </summary>
+    protected override void ProcessUpdate(float dt)
     {
-        float dt = (float)delta;
+        if (IsDead) return;
+        TickAttackFSM(dt);
+    }
 
-        // Knockback physics
-        if (_knockbackVelocity.LengthSquared() > 0.01f)
+    protected override void OnDamageTaken(DamageData data)
+    {
+        FlashWhite();
+    }
+
+    protected override void OnDeath()
+    {
+        _attackHitbox.Deactivate();
+        _warningIndicator.Visible = false;
+        _attackFlash.LightEnergy = 0f;
+        SetHurtboxActive(false);
+        GD.Print($"{Name} killed.");
+
+        var deathTween = CreateTween();
+        deathTween.SetParallel(true);
+        deathTween.TweenProperty(_mesh, "scale", Vector3.Zero, 0.4f)
+            .SetEase(Tween.EaseType.In)
+            .SetTrans(Tween.TransitionType.Back);
+        deathTween.TweenProperty(_material, "albedo_color",
+            new Color(0.3f, 0.3f, 0.3f), 0.4f);
+        deathTween.SetParallel(false);
+
+        float delay = Stats?.RespawnDelay ?? 3f;
+        if (delay > 0f)
         {
-            Velocity = new Vector3(_knockbackVelocity.X, Velocity.Y, _knockbackVelocity.Z);
-            _knockbackVelocity = _knockbackVelocity.Lerp(Vector3.Zero, KnockbackDecay * dt);
+            deathTween.TweenInterval(delay);
+            deathTween.TweenCallback(Callable.From(Respawn));
         }
-        else
-        {
-            Velocity = new Vector3(0f, Velocity.Y, 0f);
-            _knockbackVelocity = Vector3.Zero;
-        }
+    }
 
-        if (!IsOnFloor())
-            Velocity = new Vector3(Velocity.X, Velocity.Y - 9.8f * dt, Velocity.Z);
+    // ══════════════════════════════════════════════════════════════════
+    //  ATTACK FSM
+    // ══════════════════════════════════════════════════════════════════
 
-        MoveAndSlide();
-
-        if (_state == DummyState.Dead) return;
-
+    private void TickAttackFSM(float dt)
+    {
         _stateTimer -= dt;
 
         switch (_state)
@@ -110,62 +133,16 @@ public partial class AttackDummy : CharacterBody3D
                 break;
 
             case DummyState.Telegraph:
-                float progress = 1f - (_stateTimer / TelegraphDuration);
-
-                // Warning indicator pulses faster as attack approaches
-                float pulseSpeed = Mathf.Lerp(8f, 30f, progress);
-                float pulse = Mathf.Sin(_stateTimer * pulseSpeed) * 0.5f + 0.5f;
-
-                // Color shifts from yellow to red as attack nears
-                var warningColor = new Color(1f, Mathf.Lerp(0f, 0.8f, 1f - progress), 0f);
-                _warningMat.AlbedoColor = warningColor;
-                _warningMat.Emission = warningColor;
-                _warningMat.EmissionEnergyMultiplier = Mathf.Lerp(2f, 6f, progress);
-
-                // Indicator bobs up and down, faster near the end
-                float bob = Mathf.Sin(_stateTimer * pulseSpeed) * 0.1f;
-                _warningIndicator.Position = new Vector3(0f, 2.5f + bob, 0f);
-
-                // Dummy body scales up slightly — visual wind-up
-                float scaleUp = Mathf.Lerp(1f, 1.15f, progress);
-                _mesh.Scale = _baseScale * scaleUp;
-
-                // Body color shifts toward red
-                _material.AlbedoColor = new Color(
-                    Mathf.Lerp(0.6f, 1f, progress),
-                    Mathf.Lerp(0.15f, 0f, progress),
-                    Mathf.Lerp(0.15f, 0f, progress)
-                );
-
+                TickTelegraph();
                 if (_stateTimer <= 0f)
-                {
-                    _state = DummyState.Attacking;
-                    _stateTimer = AttackActiveDuration;
-                    _material.AlbedoColor = Colors.White;
-                    _mesh.Scale = _baseScale * 1.2f;
-                    _warningMat.AlbedoColor = new Color(1f, 0f, 0f);
-                    _warningMat.Emission = new Color(1f, 0f, 0f);
-                    _warningMat.EmissionEnergyMultiplier = 8f;
-                    _attackFlash.LightEnergy = 5f;
-                    _attackHitbox.Activate();
-                    GD.Print("AttackDummy swings!");
-                }
+                    EnterAttacking();
                 break;
 
             case DummyState.Attacking:
-                // Flash fades during attack window
-                _attackFlash.LightEnergy = Mathf.Lerp(0f, 5f, _stateTimer / AttackActiveDuration);
-
+                _attackFlash.LightEnergy = Mathf.Lerp(
+                    0f, 5f, _stateTimer / AttackActiveDuration);
                 if (_stateTimer <= 0f)
-                {
-                    _attackHitbox.Deactivate();
-                    _state = DummyState.Recovery;
-                    _stateTimer = RecoveryDuration;
-                    _material.AlbedoColor = new Color(0.4f, 0.4f, 0.4f);
-                    _mesh.Scale = _baseScale;
-                    _warningIndicator.Visible = false;
-                    _attackFlash.LightEnergy = 0f;
-                }
+                    EnterRecovery();
                 break;
 
             case DummyState.Recovery:
@@ -179,20 +156,70 @@ public partial class AttackDummy : CharacterBody3D
         }
     }
 
-    private void OnDamageReceived(DamageData data)
+    private void TickTelegraph()
     {
-        if (_isDead) return;
+        float progress = 1f - (_stateTimer / TelegraphDuration);
 
-        _currentHealth = Mathf.Max(_currentHealth - data.Amount, 0);
-        GD.Print($"AttackDummy hit for {data.Amount}. HP: {_currentHealth}/{MaxHealth}");
+        // Warning indicator pulses faster as attack approaches
+        float pulseSpeed = Mathf.Lerp(8f, 30f, progress);
+        float bob = Mathf.Sin(_stateTimer * pulseSpeed) * 0.1f;
 
-        _knockbackVelocity = data.KnockbackDirection;
-        FlashWhite();
+        var warningColor = new Color(
+            1f, Mathf.Lerp(0f, 0.8f, 1f - progress), 0f);
+        _warningMat.AlbedoColor = warningColor;
+        _warningMat.Emission = warningColor;
+        _warningMat.EmissionEnergyMultiplier = Mathf.Lerp(2f, 6f, progress);
+        _warningIndicator.Position = new Vector3(0f, 2.5f + bob, 0f);
 
-        if (_currentHealth <= 0)
-        {
-            OnDeath();
-        }
+        // Body wind-up: scale and color shift
+        _mesh.Scale = _baseScale * Mathf.Lerp(1f, 1.15f, progress);
+        _material.AlbedoColor = new Color(
+            Mathf.Lerp(0.6f, 1f, progress),
+            Mathf.Lerp(0.15f, 0f, progress),
+            Mathf.Lerp(0.15f, 0f, progress));
+    }
+
+    private void EnterAttacking()
+    {
+        _state = DummyState.Attacking;
+        _stateTimer = AttackActiveDuration;
+        _material.AlbedoColor = Colors.White;
+        _mesh.Scale = _baseScale * 1.2f;
+        _warningMat.AlbedoColor = new Color(1f, 0f, 0f);
+        _warningMat.Emission = new Color(1f, 0f, 0f);
+        _warningMat.EmissionEnergyMultiplier = 8f;
+        _attackFlash.LightEnergy = 5f;
+        _attackHitbox.Activate();
+        GD.Print($"{Name} swings!");
+    }
+
+    private void EnterRecovery()
+    {
+        _attackHitbox.Deactivate();
+        _state = DummyState.Recovery;
+        _stateTimer = RecoveryDuration;
+        _material.AlbedoColor = new Color(0.4f, 0.4f, 0.4f);
+        _mesh.Scale = _baseScale;
+        _warningIndicator.Visible = false;
+        _attackFlash.LightEnergy = 0f;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  PRIVATE
+    // ══════════════════════════════════════════════════════════════════
+
+    private void Respawn()
+    {
+        ResetHealth();
+        _state = DummyState.Idle;
+        _stateTimer = AttackInterval;
+        _mesh.Scale = _baseScale;
+        _material.AlbedoColor = new Color(0.6f, 0.15f, 0.15f);
+        _warningIndicator.Visible = false;
+        _attackFlash.LightEnergy = 0f;
+        SetHurtboxActive(true);
+        _attackHitbox.Deactivate();
+        GD.Print($"{Name} respawned.");
     }
 
     private void FlashWhite()
@@ -203,43 +230,33 @@ public partial class AttackDummy : CharacterBody3D
         tween.TweenProperty(_material, "albedo_color", savedColor, 0.2f);
     }
 
-    private void OnDeath()
+    private void CreateWarningIndicator()
     {
-        _isDead = true;
-        _state = DummyState.Dead;
-        _attackHitbox.Deactivate();
-        _knockbackVelocity = Vector3.Zero;
+        _warningIndicator = new MeshInstance3D();
+        var sphere = new SphereMesh { Radius = 0.2f, Height = 0.4f };
+        _warningIndicator.Mesh = sphere;
+        _warningMat = new StandardMaterial3D
+        {
+            AlbedoColor = new Color(1f, 0.8f, 0f),
+            EmissionEnabled = true,
+            Emission = new Color(1f, 0.8f, 0f),
+            EmissionEnergyMultiplier = 3f
+        };
+        _warningIndicator.MaterialOverride = _warningMat;
+        _warningIndicator.Position = new Vector3(0f, 2.5f, 0f);
         _warningIndicator.Visible = false;
-        _attackFlash.LightEnergy = 0f;
-        _hurtbox.SetDeferred("monitorable", false);
-
-        GD.Print("AttackDummy killed.");
-
-        var deathTween = CreateTween();
-        deathTween.SetParallel(true);
-        deathTween.TweenProperty(_mesh, "scale", Vector3.Zero, 0.4f)
-            .SetEase(Tween.EaseType.In)
-            .SetTrans(Tween.TransitionType.Back);
-        deathTween.TweenProperty(_material, "albedo_color", new Color(0.3f, 0.3f, 0.3f), 0.4f);
-        deathTween.SetParallel(false);
-        deathTween.TweenInterval(RespawnDelay);
-        deathTween.TweenCallback(Callable.From(Respawn));
+        AddChild(_warningIndicator);
     }
 
-    private void Respawn()
+    private void CreateAttackFlash()
     {
-        _currentHealth = MaxHealth;
-        _isDead = false;
-        _state = DummyState.Idle;
-        _stateTimer = AttackInterval;
-        _mesh.Scale = _baseScale;
-        _material.AlbedoColor = new Color(0.6f, 0.15f, 0.15f);
-        _warningIndicator.Visible = false;
-        _attackFlash.LightEnergy = 0f;
-        _knockbackVelocity = Vector3.Zero;
-        _hurtbox.SetDeferred("monitorable", true);
-        _attackHitbox.Deactivate();
-
-        GD.Print("AttackDummy respawned.");
+        _attackFlash = new OmniLight3D
+        {
+            LightColor = new Color(1f, 0.3f, 0.1f),
+            LightEnergy = 0f,
+            OmniRange = 4f,
+            Position = new Vector3(0f, 1f, 0f)
+        };
+        AddChild(_attackFlash);
     }
 }
