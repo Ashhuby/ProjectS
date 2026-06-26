@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://jvrdo8bfojr6"]
+
+[ext_resource type="Script" uid="uid://cfd4vywlwht8t" path="res://Scripts/EnemyBase.cs" id="1_xeo28"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="2_kpr8r"]
+[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="3_1exfc"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_kique"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0mard"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_kique"]
+height = 1.9
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kique"]
+
+[node name="Enemy" type="CharacterBody3D" unique_id=31749238 groups=["Lockable"]]
+script = ExtResource("1_xeo28")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1354106053]
+mesh = SubResource("CapsuleMesh_kique")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=447423823]
+transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 0, -0.037729442, 0)
+shape = SubResource("CapsuleShape3D_0mard")
+
+[node name="Hurtbox" type="Area3D" parent="." unique_id=1901784289]
+collision_layer = 16
+collision_mask = 0
+script = ExtResource("2_kpr8r")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox" unique_id=925280400]
+shape = SubResource("CapsuleShape3D_kique")
+debug_color = Color(0.35950977, 0.6179612, 0, 0.41960785)
+
+[node name="Hitbox" type="Area3D" parent="." unique_id=611420114]
+collision_layer = 8
+collision_mask = 4
+script = ExtResource("3_1exfc")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hitbox" unique_id=186576134]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 1)
+shape = SubResource("BoxShape3D_kique")

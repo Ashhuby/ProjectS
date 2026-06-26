@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://bes6oxai2qeh" path="res://Scripts/HealthBar.cs" id="3_5nsto"]
 [ext_resource type="PackedScene" uid="uid://c3fxxio656dk4" path="res://Scenes/TestDummy.tscn" id="4_gjpho"]
 [ext_resource type="PackedScene" uid="uid://df8yednhkj24i" path="res://Scenes/AttackDummy.tscn" id="5_p70al"]
+[ext_resource type="PackedScene" uid="uid://jvrdo8bfojr6" path="res://Scenes/Enemy.tscn" id="6_45d1s"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_j0p05"]
 sky_top_color = Color(0.04042223, 0.013346354, 0.026696343, 1)
@@ -75,3 +76,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2484088, 0, -3.2343593)
 
 [node name="AttackDummy" parent="." unique_id=31749238 instance=ExtResource("5_p70al")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8608768, 0.9, -3.4616337)
+
+[node name="Enemy" parent="." unique_id=164092482 instance=ExtResource("6_45d1s")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4947257, 0.9, -1.4423664)
