@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="CharacterStats" format=3 uid="uid://bfnh2ht2q5tao"]
+
+[ext_resource type="Script" uid="uid://djstw3lxflkw4" path="res://Core/Data/CharacterStats.cs" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+MaxHealth = 80
+MoveSpeed = 4.0
+Gravity = 9.8
+KnockbackDecay = 10.0
+RespawnDelay = 5.0

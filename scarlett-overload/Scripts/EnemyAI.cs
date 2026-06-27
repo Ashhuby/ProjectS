@@ -44,6 +44,7 @@ public class EnemyAI
 
     private float _stateTimer;
     private float _attackCooldown;
+    private bool _isParryStunned;
 
     // ── Current attack ────────────────────────────────────────────────
 
@@ -55,6 +56,12 @@ public class EnemyAI
     /// Used by EnemyBase for visual feedback.
     /// </summary>
     public float TelegraphProgress { get; private set; }
+
+    /// <summary>
+    /// Remaining stun time in seconds. Used by EnemyBase/VitalSystem
+    /// to read how much stun window is left.
+    /// </summary>
+    public float StunRemaining => State == AIState.Stunned ? _stateTimer : 0f;
 
     // ══════════════════════════════════════════════════════════════════
     //  CONSTRUCTION
@@ -135,6 +142,15 @@ public class EnemyAI
 
         _currentAttack = null;
         TelegraphProgress = 0f;
+
+        // Don't override parry stun — the vital system manages the timer.
+        // Hitting a parry-stunned enemy should NOT reset the stun duration.
+        if (_isParryStunned)
+        {
+            GD.Print($"[{_owner.Name} AI] Hit during parry stun — stun timer preserved ({_stateTimer:F1}s remaining)");
+            return;
+        }
+
         EnterState(AIState.Stunned, _config?.StunDuration ?? 0.4f);
     }
 
@@ -143,8 +159,11 @@ public class EnemyAI
         _hitbox.Deactivate();
         _currentAttack = null;
         TelegraphProgress = 0f;
-        EnterState(AIState.Stunned, _config?.ParryStaggerDuration ?? 1.2f);
-        GD.Print($"[{_owner.Name} AI] Parried — staggered");
+        _isParryStunned = true;
+
+        float duration = _config?.ParryStaggerDuration ?? 10.5f;
+        EnterState(AIState.Stunned, duration);
+        GD.Print($"[{_owner.Name} AI] PARRIED — parry stun for {duration}s (config value: {_config?.ParryStaggerDuration})");
     }
 
     public void OnDeath()
@@ -152,7 +171,20 @@ public class EnemyAI
         _hitbox.Deactivate();
         _currentAttack = null;
         TelegraphProgress = 0f;
-        // No state transition — EnemyBase handles death visuals
+        _isParryStunned = false;
+    }
+
+    /// <summary>
+    /// Add extra time to the current stun. Called by VitalSystem
+    /// when the player pops the primary vital — extends the window
+    /// for the mini vital attack.
+    /// No-op if not currently stunned.
+    /// </summary>
+    public void ExtendStun(float extraTime)
+    {
+        if (State != AIState.Stunned) return;
+        _stateTimer += extraTime;
+        GD.Print($"[{_owner.Name} AI] Stun extended by {extraTime:F1}s (remaining: {_stateTimer:F1}s)");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -268,6 +300,8 @@ public class EnemyAI
         _stateTimer -= dt;
         if (_stateTimer <= 0f)
         {
+            _isParryStunned = false;
+
             if (HasTarget && _distToTarget <= (_config?.AttackRange ?? 2.5f) * 1.5f)
             {
                 _attackCooldown = _config?.RollCooldown() ?? 1.5f;

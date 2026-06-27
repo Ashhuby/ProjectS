@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AttackData" format=3 uid="uid://b616ujs6ryims"]
+
+[ext_resource type="Script" uid="uid://bwxlnkun5sruk" path="res://Core/Data/AttackData.cs" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+AttackName = "Enemy Slash"
+Damage = 15
+KnockbackForce = 8.0
+IsParriable = true
+HitStopDuration = 0.06
+HitStopTimeScale = 0.05
+CameraShakeIntensity = 0.1
+CameraShakeDuration = 0.1
+ComboWindowDuration = 0.0

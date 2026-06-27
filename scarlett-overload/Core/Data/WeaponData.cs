@@ -5,11 +5,14 @@ using Godot;
 /// <summary>
 /// Defines a complete weapon: its combo chain, trail visuals, and scene.
 /// Create instances as .tres:
-///   Resources/Weapons/Katana.tres
+///   Resources/Weapons/Rapier.tres
 ///
 /// The AttackChain array holds one AttackData per combo step.
 /// Attack1 reads AttackChain[0], Attack2 reads AttackChain[1], etc.
 /// Adding a third combo hit = add a third .tres to the array, no code change.
+///
+/// VitalThrustAttack is separate from the combo chain — it fires only
+/// when the vital system loads it after popping a primary vital.
 /// </summary>
 [GlobalClass]
 public partial class WeaponData : Resource
@@ -24,6 +27,13 @@ public partial class WeaponData : Resource
     /// Index 0 = first swing, index 1 = second swing, etc.
     /// </summary>
     [Export] public AttackData[] AttackChain { get; set; } = System.Array.Empty<AttackData>();
+
+    /// <summary>
+    /// Special thrust attack fired when the mini vital is active.
+    /// Not part of the normal combo chain — gated by VitalSystem state.
+    /// Null means no vital thrust available (weapon doesn't support it).
+    /// </summary>
+    [Export] public AttackData VitalThrustAttack { get; set; }
 
     [ExportGroup("Trail Visuals")]
     [Export] public Color TrailTipColor { get; set; } = new Color(1f, 0.95f, 0.8f, 0.95f);

@@ -9,18 +9,22 @@ public enum CombatState
     Free,
     Attacking,
     Parrying,
+    Dashing,
     Stunned,
     Dead
 }
 
 /// <summary>
 /// Thin coordinator. Extends CharacterBase for health, knockback,
-/// gravity, and the damage pipeline. Delegates movement to PlayerMovement
-/// and combat to PlayerCombat.
+/// gravity, and the damage pipeline. Delegates movement to PlayerMovement,
+/// combat to PlayerCombat, and dashing to PlayerDash.
 ///
 /// This script stays on the root CharacterBody3D node.
 /// Animation method call tracks still target this class — each callback
 /// is a one-line delegate to _combat.
+///
+/// Requires "dash" input action in Project Settings → Input Map.
+/// Map to Shift (keyboard) and B/Circle button (gamepad).
 /// </summary>
 public partial class PlayerCharacter : CharacterBase
 {
@@ -28,10 +32,14 @@ public partial class PlayerCharacter : CharacterBase
     [Export] public WeaponData Weapon { get; set; }
     [Export] public Vector3 SwordTipOffset { get; set; } = new(0f, 0f, -0.8f);
 
+    [ExportGroup("Dash")]
+    [Export] public DashStats DashConfig { get; set; }
+
     // ── Components ────────────────────────────────────────────────────
 
     private PlayerMovement _movement;
     private PlayerCombat _combat;
+    private PlayerDash _dash;
 
     // ══════════════════════════════════════════════════════════════════
     //  CHARACTERBASE LIFECYCLE
@@ -63,9 +71,13 @@ public partial class PlayerCharacter : CharacterBase
 
         // ── Create components ─────────────────────────────────────────
         _movement = new PlayerMovement(this, playback, camera, Stats);
+        _movement.SubscribeEvents();
 
-        _combat = new PlayerCombat(this, playback, hitbox, camera, Weapon);
+        _dash = new PlayerDash(DashConfig ?? new DashStats(), SetHurtboxActive);
+
+        _combat = new PlayerCombat(this, playback, hitbox, camera, Weapon, _dash);
         _combat.CreateParryIndicator();
+        _combat.SubscribeEvents();
 
         // ── Sword trail ───────────────────────────────────────────────
         var trail = new SwordTrail();
@@ -89,6 +101,13 @@ public partial class PlayerCharacter : CharacterBase
             GD.Print("[Player] No weapon — using fallback values");
     }
 
+    public override void _ExitTree()
+    {
+        base._ExitTree();
+        _combat?.UnsubscribeEvents();
+        _movement?.UnsubscribeEvents();
+    }
+
     // ══════════════════════════════════════════════════════════════════
     //  INPUT
     // ══════════════════════════════════════════════════════════════════
@@ -101,6 +120,11 @@ public partial class PlayerCharacter : CharacterBase
             _combat.HandleAttackInput();
         else if (@event.IsActionPressed("parry"))
             _combat.HandleParryInput();
+        else if (@event.IsActionPressed("dash"))
+        {
+            Vector3 dashDir = PlayerDash.ComputeDirection(this);
+            _combat.HandleDashInput(dashDir);
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -108,28 +132,37 @@ public partial class PlayerCharacter : CharacterBase
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Drive horizontal velocity. Only applies input movement when
-    /// in Free state — combat states return zero horizontal velocity
-    /// (CharacterBase handles knockback separately).
+    /// Drive horizontal velocity. Dashing uses dash velocity directly.
+    /// Free state uses input movement. All other combat states return
+    /// zero horizontal velocity (CharacterBase handles knockback separately).
     /// </summary>
     protected override Vector3 ProcessMovement(Vector3 velocity, float dt)
     {
+        if (_combat.State == CombatState.Dashing && _dash != null)
+        {
+            velocity.X = _dash.DashVelocity.X;
+            velocity.Z = _dash.DashVelocity.Z;
+            return velocity;
+        }
+
         if (_combat.State != CombatState.Free)
         {
             velocity.X = 0f;
             velocity.Z = 0f;
             return velocity;
         }
+
         return _movement.ComputeVelocity(velocity, dt);
     }
 
     /// <summary>
     /// Called every physics frame after MoveAndSlide.
-    /// Ticks the combat FSM and updates rotation/animation.
+    /// Ticks the combat FSM (which includes dash) and updates rotation/animation.
     /// </summary>
     protected override void ProcessUpdate(float dt)
     {
         _combat.Tick(dt);
+        _movement.Tick(dt);
 
         if (_combat.State != CombatState.Dead)
             _movement.UpdateRotation(dt, isInCombat: _combat.State != CombatState.Free);

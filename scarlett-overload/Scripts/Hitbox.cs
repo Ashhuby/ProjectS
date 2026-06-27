@@ -54,7 +54,7 @@ public partial class Hitbox : Area3D
     {
         _currentAttack = attack;
         _hitTargets.Clear();
-        Monitoring = true;
+        SetDeferred("monitoring", true);
     }
 
     /// <summary>
@@ -65,12 +65,12 @@ public partial class Hitbox : Area3D
     {
         _currentAttack = null;
         _hitTargets.Clear();
-        Monitoring = true;
+        SetDeferred("monitoring", true);
     }
 
     public void Deactivate()
     {
-        Monitoring = false;
+        SetDeferred("monitoring", false);
         _hitTargets.Clear();
         _currentAttack = null;
     }

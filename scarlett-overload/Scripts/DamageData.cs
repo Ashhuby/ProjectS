@@ -3,7 +3,8 @@ using Godot;
 public enum AttackType
 {
     Light,
-    Heavy
+    Heavy,
+    Thrust
 }
 
 public class DamageData

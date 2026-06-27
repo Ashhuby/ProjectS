@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://d27s5qyp7hums" path="res://Scripts/CameraController.cs" id="2_j0p05"]
 [ext_resource type="Script" uid="uid://bes6oxai2qeh" path="res://Scripts/HealthBar.cs" id="3_5nsto"]
 [ext_resource type="PackedScene" uid="uid://c3fxxio656dk4" path="res://Scenes/TestDummy.tscn" id="4_gjpho"]
+[ext_resource type="Script" uid="uid://c88x662mn25wu" path="res://Scripts/VitalCompass.cs" id="4_y7y61"]
 [ext_resource type="PackedScene" uid="uid://df8yednhkj24i" path="res://Scenes/AttackDummy.tscn" id="5_p70al"]
 [ext_resource type="PackedScene" uid="uid://jvrdo8bfojr6" path="res://Scenes/Enemy.tscn" id="6_45d1s"]
 
@@ -51,6 +52,11 @@ shape = SubResource("WorldBoundaryShape3D_p70al")
 [node name="PlayerCharacter" parent="." unique_id=1981295172 instance=ExtResource("1_5cjrv")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
+[node name="SpotLight3D" type="SpotLight3D" parent="PlayerCharacter" unique_id=597411152]
+transform = Transform3D(-1, -2.3641952e-08, -9.068024e-08, -4.7283905e-08, 0.962739, 0.2704324, 8.090785e-08, 0.2704324, -0.962739, 1.7552661e-07, 1.5238171, -2.0077903)
+light_color = Color(1, 0.5847179, 0, 1)
+distance_fade_enabled = true
+
 [node name="CameraRig" type="Node3D" parent="." unique_id=1188148898]
 script = ExtResource("2_j0p05")
 
@@ -64,12 +70,19 @@ current = true
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=425415270]
 
-[node name="Control" type="Control" parent="HUD" unique_id=1698898626]
+[node name="HealthBar" type="Control" parent="HUD" unique_id=1698898626]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("3_5nsto")
+
+[node name="VitalCompass" type="Control" parent="HUD" unique_id=1166431097]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("4_y7y61")
 
 [node name="TestDummy" parent="." unique_id=2124357286 instance=ExtResource("4_gjpho")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2484088, 0, -3.2343593)
@@ -77,5 +90,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2484088, 0, -3.2343593)
 [node name="AttackDummy" parent="." unique_id=31749238 instance=ExtResource("5_p70al")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8608768, 0.9, -3.4616337)
 
-[node name="Enemy" parent="." unique_id=164092482 instance=ExtResource("6_45d1s")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4947257, 0.9, -1.4423664)
+[node name="Enemy" parent="." unique_id=1349319068 instance=ExtResource("6_45d1s")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1458864, 0.9, 3.9040678)

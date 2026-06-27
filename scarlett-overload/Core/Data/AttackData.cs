@@ -22,6 +22,15 @@ public partial class AttackData : Resource
     [Export] public int Damage { get; set; } = 10;
     [Export] public float KnockbackForce { get; set; } = 5f;
 
+    [ExportGroup("Parry")]
+    /// <summary>
+    /// If true, this attack can be deflected by the player's parry.
+    /// For capsule enemies this flag is the sole parry gate.
+    /// For enemies with AnimationPlayer, method call tracks
+    /// (SetParriable/ClearParriable) can override per-frame.
+    /// </summary>
+    [Export] public bool IsParriable { get; set; } = false;
+
     [ExportGroup("Game Feel")]
     [Export] public float HitStopDuration { get; set; } = 0.06f;
     [Export(PropertyHint.Range, "0,1,0.01")]

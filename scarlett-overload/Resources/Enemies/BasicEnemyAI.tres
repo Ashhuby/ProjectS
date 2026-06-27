@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EnemyConfig" format=3 uid="uid://gt2cbkbjncr0"]
+
+[ext_resource type="Script" uid="uid://doh4s4gssab1t" path="res://Core/Data/EnemyConfig.cs" id="1_script"]
+[ext_resource type="Resource" uid="uid://b616ujs6ryims" path="res://Resources/Enemies/EnemySlash.tres" id="2_attack"]
+
+[resource]
+script = ExtResource("1_script")
+TelegraphDuration = 0.7
+RecoveryDuration = 0.6
+StunDuration = 4.0
+ParryStaggerDuration = 1.2
+Attacks = [ExtResource("2_attack")]

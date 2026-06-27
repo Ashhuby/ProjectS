@@ -37,7 +37,54 @@ public partial class EnemyConfig : Resource
     [ExportGroup("Hit Reactions")]
     [Export] public float StunDuration { get; set; } = 0.4f;
     /// <summary>Stagger when parried — longer than normal stun, punish window.</summary>
-    [Export] public float ParryStaggerDuration { get; set; } = 1.2f;
+    [Export] public float ParryStaggerDuration { get; set; } = 10.5f;
+
+    [ExportGroup("Vital System")]
+    /// <summary>
+    /// Extra stun time added when the player pops the primary vital.
+    /// Total vital window = ParryStaggerDuration + VitalStunExtension.
+    /// </summary>
+    [Export] public float VitalStunExtension { get; set; } = 4.5f;
+
+    /// <summary>
+    /// Half-angle in degrees of the hit cone for vital detection.
+    /// 45 = the player must be within a 90° arc centered on the vital direction.
+    /// </summary>
+    [Export(PropertyHint.Range, "15,90,5")]
+    public float VitalAngleTolerance { get; set; } = 45f;
+
+    /// <summary>
+    /// If false, vitals cannot spawn on the side directly opposite the
+    /// player at the moment of parry. Use for large enemies where
+    /// circling to the far side is impractical during the stun window.
+    /// </summary>
+    [Export] public bool AllowOppositeVitals { get; set; } = true;
+
+    /// <summary>
+    /// Damage multiplier applied when the player pops the primary vital.
+    /// Multiplied against the attack's base damage.
+    /// </summary>
+    [Export] public float VitalBurstMultiplier { get; set; } = 2.0f;
+
+    /// <summary>
+    /// Damage multiplier applied when the player pops the mini vital
+    /// with the vital thrust. Multiplied against the VitalThrust's base damage.
+    /// </summary>
+    [Export] public float VitalBonusMultiplier { get; set; } = 1.5f;
+
+    /// <summary>
+    /// Movement speed multiplier granted to the player after popping
+    /// the mini vital. Applied for SpeedBoostDuration seconds.
+    /// </summary>
+    [Export] public float SpeedBoostMultiplier { get; set; } = 1.4f;
+
+    /// <summary>Duration of the speed boost in seconds.</summary>
+    [Export] public float SpeedBoostDuration { get; set; } = 1.5f;
+
+    /// <summary>
+    /// Offset radius from enemy center where vital indicators spawn (units).
+    /// </summary>
+    [Export] public float VitalSpawnRadius { get; set; } = 1.5f;
 
     [ExportGroup("Attacks")]
     /// <summary>

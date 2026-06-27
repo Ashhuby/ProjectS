@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://cfd4vywlwht8t" path="res://Scripts/EnemyBase.cs" id="1_xeo28"]
 [ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="2_kpr8r"]
 [ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="3_1exfc"]
+[ext_resource type="Resource" path="res://Resources/Enemies/BasicEnemyAI.tres" id="4_config"]
+[ext_resource type="Resource" path="res://Resources/Characters/EnemyStats.tres" id="5_stats"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_kique"]
 radius = 0.4
@@ -17,6 +19,8 @@ height = 1.9
 
 [node name="Enemy" type="CharacterBody3D" unique_id=31749238 groups=["Lockable"]]
 script = ExtResource("1_xeo28")
+Config = ExtResource("4_config")
+Stats = ExtResource("5_stats")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1354106053]
 mesh = SubResource("CapsuleMesh_kique")

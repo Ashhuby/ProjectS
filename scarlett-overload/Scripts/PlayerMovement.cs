@@ -1,3 +1,4 @@
+using Game.Autoloads;
 using Game.Core.Data;
 using Godot;
 
@@ -18,10 +19,18 @@ public class PlayerMovement
 
     private Vector3 _lastMoveDir;
 
+    // ── Speed boost ───────────────────────────────────────────────────
+
+    private float _speedMultiplier = 1f;
+    private float _speedBoostTimer;
+
     /// <summary>
     /// True when the player is providing movement input this frame.
     /// </summary>
     public bool IsMoving => _lastMoveDir != Vector3.Zero;
+
+    /// <summary>True when a speed boost is active.</summary>
+    public bool IsBoosted => _speedBoostTimer > 0f;
 
     public PlayerMovement(
         CharacterBody3D owner,
@@ -36,6 +45,51 @@ public class PlayerMovement
     }
 
     // ══════════════════════════════════════════════════════════════════
+    //  EVENT SUBSCRIPTION
+    // ══════════════════════════════════════════════════════════════════
+
+    public void SubscribeEvents()
+    {
+        if (EventBus.Instance == null) return;
+        EventBus.Instance.SpeedBoostApplied += OnSpeedBoostApplied;
+    }
+
+    public void UnsubscribeEvents()
+    {
+        if (EventBus.Instance == null) return;
+        EventBus.Instance.SpeedBoostApplied -= OnSpeedBoostApplied;
+    }
+
+    private void OnSpeedBoostApplied(float multiplier, float duration)
+    {
+        _speedMultiplier = multiplier;
+        _speedBoostTimer = duration;
+        GD.Print($"[Movement] Speed boost: {multiplier}x for {duration}s");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  TICK — call every physics frame regardless of combat state
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Tick the speed boost timer. Call from PlayerCharacter.ProcessUpdate
+    /// every frame — the boost needs to count down even during attacks.
+    /// </summary>
+    public void Tick(float dt)
+    {
+        if (_speedBoostTimer > 0f)
+        {
+            _speedBoostTimer -= dt;
+            if (_speedBoostTimer <= 0f)
+            {
+                _speedMultiplier = 1f;
+                _speedBoostTimer = 0f;
+                GD.Print("[Movement] Speed boost expired");
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     //  VELOCITY
     // ══════════════════════════════════════════════════════════════════
 
@@ -46,7 +100,7 @@ public class PlayerMovement
     /// </summary>
     public Vector3 ComputeVelocity(Vector3 velocity, float dt)
     {
-        float speed = _stats?.MoveSpeed ?? 5f;
+        float speed = (_stats?.MoveSpeed ?? 5f) * _speedMultiplier;
         float accel = _stats?.Acceleration ?? 25f;
 
         Vector2 inputDir = Input.GetVector(

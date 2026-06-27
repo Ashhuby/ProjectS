@@ -208,6 +208,17 @@ public abstract partial class CharacterBase : CharacterBody3D, IDamageable
     }
 
     /// <summary>
+    /// Fire the HealthChanged event from a subclass.
+    /// C# events can only be invoked by the declaring class, so
+    /// subclasses that modify _currentHealth directly (e.g. vital
+    /// bonus damage) must call this to notify the UI.
+    /// </summary>
+    protected void NotifyHealthChanged()
+    {
+        HealthChanged?.Invoke(_currentHealth, MaxHealth);
+    }
+
+    /// <summary>
     /// Safely toggle the hurtbox on/off (e.g. disable on death).
     /// Uses SetDeferred to avoid physics callback errors.
     /// </summary>

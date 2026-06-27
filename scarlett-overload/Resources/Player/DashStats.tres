@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DashStats" format=3 uid="uid://bciudcgs8qlpr"]
+
+[ext_resource type="Script" uid="uid://mexwuf0rpke" path="res://Core/Data/DashStats.cs" id="1_iddb3"]
+
+[resource]
+script = ExtResource("1_iddb3")
+Distance = 2.0
+Duration = 0.2
+metadata/_custom_type_script = "uid://mexwuf0rpke"
