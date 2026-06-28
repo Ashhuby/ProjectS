@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://b8077wdh1243" path="res://Scenes/Sword.tscn" id="3_2getf"]
 [ext_resource type="Resource" uid="uid://bciudcgs8qlpr" path="res://Resources/Player/DashStats.tres" id="3_id6tp"]
 [ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="4_mdaju"]
+[ext_resource type="Resource" uid="uid://c0a1b58qqj427" path="res://Resources/Player/CharacterStats.tres" id="4_wnmxb"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_5gnj7"]
 
@@ -150,6 +151,7 @@ graph_offset = Vector2(222, -310)
 script = ExtResource("1_v7sut")
 Weapon = ExtResource("2_r4x55")
 DashConfig = ExtResource("3_id6tp")
+Stats = ExtResource("4_wnmxb")
 
 [node name="PlayerCollision" type="CollisionShape3D" parent="." unique_id=1393565654]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0.752, 0)

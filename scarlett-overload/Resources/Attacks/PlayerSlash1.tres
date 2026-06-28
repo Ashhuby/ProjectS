@@ -5,4 +5,11 @@
 [resource]
 script = ExtResource("1_dhwn7")
 AttackName = "Slash 1"
+Damage = 10
+KnockbackForce = 3.0
+HitStopDuration = 0.08
+HitStopTimeScale = 0.05
+CameraShakeIntensity = 0.2
+CameraShakeDuration = 0.1
+ComboWindowDuration = 0.25
 metadata/_custom_type_script = "uid://bwxlnkun5sruk"

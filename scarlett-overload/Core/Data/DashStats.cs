@@ -8,18 +8,21 @@ using Godot;
 ///
 /// Controls distance, timing, i-frame window, and cooldown.
 /// I-frame start/end are fractions of Duration (0–1).
-/// At default values: dash lasts 0.2s, i-frames active from
-/// 0.05s to 0.15s (middle 50% of the dash).
+///
+/// Tuned values: dash covers 3 units in 0.18s (16.7 u/s, ~3× base speed).
+/// I-frames from 5% to 85% of duration — near-instant invincibility,
+/// vulnerable only at the very end. Cooldown 0.35s allows dash chaining
+/// during vital windows.
 /// </summary>
 [GlobalClass]
 public partial class DashStats : Resource
 {
     [ExportGroup("Movement")]
     /// <summary>Total distance covered by a single dash (units).</summary>
-    [Export] public float Distance { get; set; } = 2f;
+    [Export] public float Distance { get; set; } = 3f;
 
     /// <summary>Total duration of the dash in seconds.</summary>
-    [Export] public float Duration { get; set; } = 0.2f;
+    [Export] public float Duration { get; set; } = 0.18f;
 
     [ExportGroup("I-Frames")]
     /// <summary>
@@ -27,15 +30,15 @@ public partial class DashStats : Resource
     /// Hurtbox is disabled from this point until IFrameEnd.
     /// </summary>
     [Export(PropertyHint.Range, "0,1,0.05")]
-    public float IFrameStart { get; set; } = 0.25f;
+    public float IFrameStart { get; set; } = 0.05f;
 
     /// <summary>
     /// Fraction of Duration when i-frames end (1 = dash end).
     /// </summary>
     [Export(PropertyHint.Range, "0,1,0.05")]
-    public float IFrameEnd { get; set; } = 0.75f;
+    public float IFrameEnd { get; set; } = 0.85f;
 
     [ExportGroup("Cooldown")]
     /// <summary>Time in seconds before another dash can be performed.</summary>
-    [Export] public float Cooldown { get; set; } = 0.5f;
+    [Export] public float Cooldown { get; set; } = 0.35f;
 }

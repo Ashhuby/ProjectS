@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="CharacterStats" format=3 uid="uid://c0a1b58qqj427"]
+
+[ext_resource type="Script" uid="uid://djstw3lxflkw4" path="res://Core/Data/CharacterStats.cs" id="1_vdgb0"]
+
+[resource]
+script = ExtResource("1_vdgb0")
+MoveSpeed = 5.5
+Acceleration = 30.0
+RotationSpeed = 12.0
+metadata/_custom_type_script = "uid://djstw3lxflkw4"

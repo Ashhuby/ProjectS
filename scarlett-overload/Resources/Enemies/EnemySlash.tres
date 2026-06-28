@@ -5,11 +5,11 @@
 [resource]
 script = ExtResource("1_script")
 AttackName = "Enemy Slash"
-Damage = 15
-KnockbackForce = 8.0
+Damage = 20
+KnockbackForce = 5.0
 IsParriable = true
-HitStopDuration = 0.06
+HitStopDuration = 0.08
 HitStopTimeScale = 0.05
-CameraShakeIntensity = 0.1
-CameraShakeDuration = 0.1
+CameraShakeIntensity = 0.15
+CameraShakeDuration = 0.12
 ComboWindowDuration = 0.0

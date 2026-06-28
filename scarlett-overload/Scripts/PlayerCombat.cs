@@ -45,14 +45,15 @@ public class PlayerCombat
     private bool _isVitalThrusting;
 
     // ── Game feel fallbacks (used when no AttackData) ─────────────────
+    // Tuned for Sekiro-style impact: short sharp jolts, not prolonged wobble.
 
-    public float FallbackComboWindow { get; set; } = 0.2f;
-    public float FallbackHitStopDuration { get; set; } = 0.06f;
+    public float FallbackComboWindow { get; set; } = 0.25f;
+    public float FallbackHitStopDuration { get; set; } = 0.08f;
     public float FallbackHitStopTimeScale { get; set; } = 0.05f;
-    public float DealHitShakeIntensity { get; set; } = 0.15f;
-    public float DealHitShakeDuration { get; set; } = 0.15f;
-    public float TakeHitShakeIntensity { get; set; } = 0.25f;
-    public float TakeHitShakeDuration { get; set; } = 0.2f;
+    public float DealHitShakeIntensity { get; set; } = 0.2f;
+    public float DealHitShakeDuration { get; set; } = 0.1f;
+    public float TakeHitShakeIntensity { get; set; } = 0.35f;
+    public float TakeHitShakeDuration { get; set; } = 0.12f;
 
     // ══════════════════════════════════════════════════════════════════
     //  CONSTRUCTION

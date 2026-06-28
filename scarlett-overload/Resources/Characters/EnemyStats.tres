@@ -7,5 +7,3 @@ script = ExtResource("1_script")
 MaxHealth = 80
 MoveSpeed = 4.0
 Gravity = 9.8
-KnockbackDecay = 10.0
-RespawnDelay = 5.0

@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://b68krturt83vx" path="res://Scenes/PlayerCharacter.tscn" id="1_5cjrv"]
 [ext_resource type="Script" uid="uid://d27s5qyp7hums" path="res://Scripts/CameraController.cs" id="2_j0p05"]
-[ext_resource type="Script" uid="uid://bes6oxai2qeh" path="res://Scripts/HealthBar.cs" id="3_5nsto"]
+[ext_resource type="Script" uid="uid://df1fvdsj37wtd" path="res://Scripts/UI/PlayerHealthBar.cs" id="3_y7y61"]
 [ext_resource type="PackedScene" uid="uid://c3fxxio656dk4" path="res://Scenes/TestDummy.tscn" id="4_gjpho"]
 [ext_resource type="Script" uid="uid://c88x662mn25wu" path="res://Scripts/VitalCompass.cs" id="4_y7y61"]
 [ext_resource type="PackedScene" uid="uid://df8yednhkj24i" path="res://Scenes/AttackDummy.tscn" id="5_p70al"]
@@ -75,7 +75,7 @@ layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
-script = ExtResource("3_5nsto")
+script = ExtResource("3_y7y61")
 
 [node name="VitalCompass" type="Control" parent="HUD" unique_id=1166431097]
 layout_mode = 3
@@ -91,4 +91,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2484088, 0, -3.2343593)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8608768, 0.9, -3.4616337)
 
 [node name="Enemy" parent="." unique_id=1349319068 instance=ExtResource("6_45d1s")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1458864, 0.9, 3.9040678)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0761614, 0.9, 8.2119665)
+
+[node name="Enemy2" parent="." unique_id=983973144 instance=ExtResource("6_45d1s")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.563025, 0.9, 8.115418)
+
+[node name="Enemy3" parent="." unique_id=912489379 instance=ExtResource("6_45d1s")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4772873, 0.9, 7.049918)

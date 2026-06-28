@@ -4,6 +4,9 @@
 
 [resource]
 script = ExtResource("1_iddb3")
-Distance = 2.0
-Duration = 0.2
+Distance = 3.0
+Duration = 0.18
+IFrameStart = 0.05
+IFrameEnd = 0.85
+Cooldown = 0.35
 metadata/_custom_type_script = "uid://mexwuf0rpke"

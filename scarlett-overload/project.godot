@@ -20,6 +20,7 @@ run/max_fps=60
 
 EventBus="*uid://dhli1kef3o6ry"
 GameManager="*uid://dc2c7lkbfwnuk"
+AggressionManager="*uid://bcg2t4lq5wwqu"
 
 [display]
 

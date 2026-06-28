@@ -2,6 +2,7 @@ using Game.Autoloads;
 using Game.Characters;
 using Game.Core.Data;
 using Game.Core.Interfaces;
+using Game.UI;
 using Godot;
 
 /// <summary>
@@ -61,6 +62,9 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
     private float _vitalPulseTimer;
     private VitalSystem.VitalState _prevVitalState;
 
+    // Health bar (world-space, above head)
+    private EnemyHealthBar _healthBar;
+
     // ── ITargetable ───────────────────────────────────────────────────
     public Vector3 TargetPosition => GlobalPosition + new Vector3(0f, 1f, 0f);
     public bool IsValidTarget => !IsDead;
@@ -104,6 +108,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         CreateVisuals();
         CreateWarningIndicator();
         CreateVitalIndicator();
+        CreateHealthBar();
 
         // Subscribe to parry events — react when OUR attack gets deflected
         if (EventBus.Instance != null)
@@ -167,6 +172,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         IsCurrentAttackParriable = false;
         _vitalSystem?.Reset();
         SetHurtboxActive(false);
+        _healthBar?.OnOwnerDied();
 
         GD.Print($"[{Name}] Killed.");
 
@@ -569,6 +575,17 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         AddChild(_warningIndicator);
     }
 
+    private void CreateHealthBar()
+    {
+        _healthBar = new EnemyHealthBar();
+        _healthBar.Setup(this);
+        AddChild(_healthBar);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  RESPAWN
+    // ══════════════════════════════════════════════════════════════════
+
     private void Respawn()
     {
         ResetHealth();
@@ -582,6 +599,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _prevVitalState = VitalSystem.VitalState.Inactive;
         SetHurtboxActive(true);
         _hitbox.Deactivate();
+        _healthBar?.OnOwnerRespawned();
         GD.Print($"[{Name}] Respawned.");
     }
 

@@ -1,6 +1,19 @@
+namespace Game.UI;
+
 using Godot;
 
-public partial class HealthBar : Control
+/// <summary>
+/// Screen-space player health bar. Pinned to top-left of the HUD.
+/// Ghost bar (orange) trails behind the health bar (red) to visualize
+/// recent damage.
+///
+/// Requires the PlayerCharacter node to be in the "Player" group.
+/// Subscribes to PlayerCharacter.HealthChanged via IDamageable.
+///
+/// Add as a child of a CanvasLayer or directly to the scene tree
+/// (Control nodes render in screen space by default).
+/// </summary>
+public partial class PlayerHealthBar : Control
 {
     [Export] public float GhostBarDelay = 0.4f;
     [Export] public float GhostBarDrainSpeed = 0.5f;
@@ -41,7 +54,7 @@ public partial class HealthBar : Control
         _player = GetTree().GetFirstNodeInGroup("Player") as PlayerCharacter;
         if (_player == null)
         {
-            GD.PrintErr("HealthBar: No node found in 'Player' group. Add PlayerCharacter to the 'Player' group.");
+            GD.PrintErr("PlayerHealthBar: No node found in 'Player' group. Add PlayerCharacter to the 'Player' group.");
             return;
         }
 

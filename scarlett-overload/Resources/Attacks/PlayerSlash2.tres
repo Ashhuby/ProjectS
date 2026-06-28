@@ -6,10 +6,10 @@
 script = ExtResource("1_gkt00")
 AttackName = "Slash 2"
 Type = 1
-Damage = 20
-KnockbackForce = 10.0
-HitStopDuration = 0.09
+Damage = 15
+KnockbackForce = 5.0
+HitStopDuration = 0.1
 HitStopTimeScale = 0.03
 CameraShakeIntensity = 0.25
-CameraShakeDuration = 0.2
+CameraShakeDuration = 0.12
 metadata/_custom_type_script = "uid://bwxlnkun5sruk"
