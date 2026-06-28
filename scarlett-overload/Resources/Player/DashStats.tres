@@ -4,7 +4,6 @@
 
 [resource]
 script = ExtResource("1_iddb3")
-Distance = 3.0
 Duration = 0.18
 IFrameStart = 0.05
 IFrameEnd = 0.85

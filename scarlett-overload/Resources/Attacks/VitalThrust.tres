@@ -7,7 +7,6 @@ script = ExtResource("1_oiyne")
 AttackName = "Vital Thrust"
 Type = 2
 Damage = 25
-KnockbackForce = 5.0
 HitStopDuration = 0.12
 HitStopTimeScale = 0.02
 CameraShakeIntensity = 0.35

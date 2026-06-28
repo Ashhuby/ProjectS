@@ -6,7 +6,6 @@
 script = ExtResource("1_script")
 AttackName = "Enemy Slash"
 Damage = 20
-KnockbackForce = 5.0
 IsParriable = true
 HitStopDuration = 0.08
 HitStopTimeScale = 0.05

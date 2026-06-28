@@ -5,12 +5,7 @@
 [ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="3_1exfc"]
 [ext_resource type="Resource" uid="uid://gt2cbkbjncr0" path="res://Resources/Enemies/BasicEnemyAI.tres" id="4_config"]
 [ext_resource type="Resource" uid="uid://bfnh2ht2q5tao" path="res://Resources/Characters/EnemyStats.tres" id="5_stats"]
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_kique"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="BoxMesh" id="BoxMesh_1exfc"]
+[ext_resource type="PackedScene" uid="uid://lhhefifhrrn1" path="res://Assets/Models/Wolf.glb" id="6_mo1ky"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0mard"]
 
@@ -24,18 +19,15 @@ script = ExtResource("1_xeo28")
 Config = ExtResource("4_config")
 Stats = ExtResource("5_stats")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1354106053]
-mesh = SubResource("CapsuleMesh_kique")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D" unique_id=884452058]
-transform = Transform3D(0.6, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0.4, 0.28421116)
-mesh = SubResource("BoxMesh_1exfc")
+[node name="Wolf" parent="." unique_id=748782127 instance=ExtResource("6_mo1ky")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=447423823]
-transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 0, -0.037729442, 0)
+transform = Transform3D(0.9, 0, 0, 0, -3.934025e-08, -0.9, 0, 0.9, -3.934025e-08, 0, 0.42830902, 0)
 shape = SubResource("CapsuleShape3D_0mard")
 
 [node name="Hurtbox" type="Area3D" parent="." unique_id=1901784289]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0.7761273, 0)
 collision_layer = 16
 collision_mask = 0
 script = ExtResource("2_kpr8r")
@@ -45,10 +37,11 @@ shape = SubResource("CapsuleShape3D_kique")
 debug_color = Color(0.35950977, 0.6179612, 0, 0.41960785)
 
 [node name="Hitbox" type="Area3D" parent="." unique_id=611420114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7495142, 0.7042109)
 collision_layer = 8
 collision_mask = 4
 script = ExtResource("3_1exfc")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Hitbox" unique_id=186576134]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 1)
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0)
 shape = SubResource("BoxShape3D_kique")

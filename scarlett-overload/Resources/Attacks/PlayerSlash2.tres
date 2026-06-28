@@ -7,7 +7,6 @@ script = ExtResource("1_gkt00")
 AttackName = "Slash 2"
 Type = 1
 Damage = 15
-KnockbackForce = 5.0
 HitStopDuration = 0.1
 HitStopTimeScale = 0.03
 CameraShakeIntensity = 0.25

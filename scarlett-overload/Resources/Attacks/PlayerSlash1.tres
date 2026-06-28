@@ -5,7 +5,6 @@
 [resource]
 script = ExtResource("1_dhwn7")
 AttackName = "Slash 1"
-Damage = 10
 KnockbackForce = 3.0
 HitStopDuration = 0.08
 HitStopTimeScale = 0.05

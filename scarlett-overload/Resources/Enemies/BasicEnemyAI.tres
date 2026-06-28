@@ -5,24 +5,9 @@
 
 [resource]
 script = ExtResource("1_script")
-DetectionRange = 12.0
-LoseAggroRange = 20.0
-AttackRange = 2.5
-ChaseSpeed = 5.0
-RotationSpeed = 10.0
 AttackCooldownMin = 0.8
 AttackCooldownMax = 1.8
-TelegraphDuration = 0.5
 AttackActiveDuration = 0.2
 RecoveryDuration = 0.45
 StunDuration = 0.3
-ParryStaggerDuration = 2.5
-VitalStunExtension = 1.5
-VitalAngleTolerance = 40.0
-AllowOppositeVitals = true
-VitalBurstMultiplier = 2.0
-VitalBonusMultiplier = 1.5
-SpeedBoostMultiplier = 1.5
-SpeedBoostDuration = 1.0
-VitalSpawnRadius = 1.5
 Attacks = [ExtResource("2_attack")]

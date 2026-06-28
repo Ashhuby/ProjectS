@@ -24,7 +24,7 @@ public partial class CameraController : Node3D
     private const float MouseSwitchThreshold = 30f;
     private const float StickSwitchThreshold = 0.7f;
 
-    // Lock-on indicator
+    // Lock-on indicator — small white dot at center-mass
     private MeshInstance3D _lockIndicator;
     private StandardMaterial3D _lockIndicatorMat;
 
@@ -52,17 +52,24 @@ public partial class CameraController : Node3D
     private void CreateLockIndicator()
     {
         _lockIndicator = new MeshInstance3D();
+
+        // Small white dot — sits at center-mass, not above the head
         var sphere = new SphereMesh();
-        sphere.Radius = 0.2f;
-        sphere.Height = 0.4f;
+        sphere.Radius = 0.06f;
+        sphere.Height = 0.12f;
         _lockIndicator.Mesh = sphere;
 
         _lockIndicatorMat = new StandardMaterial3D();
-        _lockIndicatorMat.AlbedoColor = new Color(1f, 0.85f, 0.1f, 0.8f);
+        _lockIndicatorMat.AlbedoColor = new Color(1f, 1f, 1f, 0.95f);
         _lockIndicatorMat.EmissionEnabled = true;
-        _lockIndicatorMat.Emission = new Color(1f, 0.85f, 0.1f);
-        _lockIndicatorMat.EmissionEnergyMultiplier = 4f;
+        _lockIndicatorMat.Emission = Colors.White;
+        _lockIndicatorMat.EmissionEnergyMultiplier = 3f;
         _lockIndicatorMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+
+        // Render on top of everything so it's always visible through the enemy
+        _lockIndicatorMat.NoDepthTest = true;
+        _lockIndicatorMat.RenderPriority = 10;
+
         _lockIndicator.MaterialOverride = _lockIndicatorMat;
 
         _lockIndicator.Visible = false;
@@ -132,60 +139,35 @@ public partial class CameraController : Node3D
                 _switchCooldown = SwitchCooldownDuration;
             }
 
-            UpdateLockOnCamera(dt);
+            UpdateLockOn(dt);
         }
-        else
-        {
-            UpdateFreeLookCamera(dt);
-        }
+
+        // Follow target smoothly
+        GlobalPosition = GlobalPosition.Lerp(_target.GlobalPosition, FollowSpeed * dt);
 
         // Camera shake
-        if (_shakeTimer > 0f)
-        {
-            _shakeTimer -= dt;
-            float t = _shakeTimer / _shakeDuration;
-            float current = _shakeIntensity * t * t;
-            _camera.Position = _cameraRestPosition + new Vector3(
-                (float)GD.RandRange(-current, current),
-                (float)GD.RandRange(-current, current),
-                0f
-            );
-        }
-        else if (_camera.Position != _cameraRestPosition)
-        {
-            _camera.Position = _cameraRestPosition;
-        }
-
-        // Follow player — always
-        GlobalPosition = GlobalPosition.Lerp(_target.GlobalPosition, FollowSpeed * dt);
-    }
-
-    // ── Free Look ─────────────────────────────────────────────────────
-
-    private void UpdateFreeLookCamera(float dt)
-    {
-        Vector2 stickInput = Input.GetVector("camera_left", "camera_right", "camera_up", "camera_down");
-
-        if (stickInput != Vector2.Zero)
-        {
-            RotateY(-stickInput.X * StickSensitivity * dt);
-            _springArm.RotateX(-stickInput.Y * StickSensitivity * dt);
-            ClampPitch();
-        }
+        UpdateShake(dt);
     }
 
     // ── Lock-On Camera ────────────────────────────────────────────────
 
-    private void UpdateLockOnCamera(float dt)
+    private void UpdateLockOn(float dt)
     {
-        // Validate target still exists and is in range
-        if (!IsInstanceValid(_lockTarget))
+        if (_lockTarget == null || !GodotObject.IsInstanceValid(_lockTarget))
         {
             DisengageLock();
             return;
         }
 
-        float distance = _lockTarget.GlobalPosition.DistanceTo(_target.GlobalPosition);
+        // Check if target is still valid (ITargetable)
+        if (_lockTarget is Game.Core.Interfaces.ITargetable targetable && !targetable.IsValidTarget)
+        {
+            DisengageLock();
+            return;
+        }
+
+        // Range check — disengage if too far
+        float distance = _target.GlobalPosition.DistanceTo(_lockTarget.GlobalPosition);
         if (distance > LockOnRange * 1.2f)
         {
             DisengageLock();
@@ -220,9 +202,11 @@ public partial class CameraController : Node3D
         springRot.X = Mathf.Lerp(springRot.X, desiredPitch, LockOnPitchSpeed * dt);
         _springArm.Rotation = springRot;
 
-        // Update lock indicator position
-        _lockIndicator.GlobalPosition = _lockTarget.GlobalPosition + new Vector3(0f, 2.2f, 0f);
-        _lockIndicator.RotateY(3f * dt);
+        // Update lock indicator — center-mass position (TargetPosition = GlobalPos + (0,1,0))
+        if (_lockTarget is Game.Core.Interfaces.ITargetable t)
+            _lockIndicator.GlobalPosition = t.TargetPosition;
+        else
+            _lockIndicator.GlobalPosition = _lockTarget.GlobalPosition + new Vector3(0f, 1f, 0f);
     }
 
     // ── Target Selection ──────────────────────────────────────────────
@@ -235,11 +219,7 @@ public partial class CameraController : Node3D
             _lockTarget = best;
             _isLockedOn = true;
             _lockIndicator.Visible = true;
-            GD.Print($"[LockOn] Locked onto {_lockTarget.Name}");
-        }
-        else
-        {
-            GD.Print("[LockOn] No valid target found");
+            GD.Print($"[Camera] Locked on to: {best.Name}");
         }
     }
 
@@ -248,75 +228,33 @@ public partial class CameraController : Node3D
         _isLockedOn = false;
         _lockTarget = null;
         _lockIndicator.Visible = false;
-        GD.Print("[LockOn] Disengaged");
-    }
-
-    private void SwitchTarget(int direction)
-    {
-        if (_lockTarget == null) return;
-
-        var candidates = GetTree().GetNodesInGroup("Lockable");
-        Vector2 currentScreenPos = _camera.UnprojectPosition(_lockTarget.GlobalPosition);
-
-        Node3D best = null;
-        float bestDelta = float.MaxValue;
-
-        foreach (var node in candidates)
-        {
-            if (node is not Node3D candidate) continue;
-            if (candidate == _lockTarget) continue;
-
-            float distance = candidate.GlobalPosition.DistanceTo(_target.GlobalPosition);
-            if (distance > LockOnRange || distance < 0.5f) continue;
-            if (_camera.IsPositionBehind(candidate.GlobalPosition)) continue;
-
-            Vector2 screenPos = _camera.UnprojectPosition(candidate.GlobalPosition);
-            float screenDelta = screenPos.X - currentScreenPos.X;
-
-            // Only consider targets in the requested direction
-            if (direction > 0 && screenDelta <= 0f) continue;
-            if (direction < 0 && screenDelta >= 0f) continue;
-
-            float absDelta = Mathf.Abs(screenDelta);
-            if (absDelta < bestDelta)
-            {
-                bestDelta = absDelta;
-                best = candidate;
-            }
-        }
-
-        if (best != null)
-        {
-            _lockTarget = best;
-            GD.Print($"[LockOn] Switched to {_lockTarget.Name}");
-        }
     }
 
     private Node3D FindBestTarget()
     {
-        var candidates = GetTree().GetNodesInGroup("Lockable");
+        var lockables = GetTree().GetNodesInGroup("Lockable");
         Node3D best = null;
         float bestScore = float.MaxValue;
 
-        Vector2 screenCenter = GetViewport().GetVisibleRect().Size / 2f;
+        Camera3D cam = _camera;
+        Vector3 camForward = -cam.GlobalTransform.Basis.Z;
 
-        foreach (var node in candidates)
+        foreach (var node in lockables)
         {
             if (node is not Node3D candidate) continue;
+            if (candidate is Game.Core.Interfaces.ITargetable t && !t.IsValidTarget) continue;
 
-            float distance = candidate.GlobalPosition.DistanceTo(_target.GlobalPosition);
-            if (distance > LockOnRange || distance < 0.5f) continue;
+            float dist = _target.GlobalPosition.DistanceTo(candidate.GlobalPosition);
+            if (dist > LockOnRange) continue;
 
-            // Skip targets behind the camera
-            if (_camera.IsPositionBehind(candidate.GlobalPosition)) continue;
+            Vector3 toCandidate = (candidate.GlobalPosition - _target.GlobalPosition).Normalized();
+            float dot = camForward.Dot(toCandidate);
 
-            // Prefer targets closer to screen center
-            Vector2 screenPos = _camera.UnprojectPosition(candidate.GlobalPosition);
-            float screenDist = screenPos.DistanceTo(screenCenter);
+            // Behind camera — skip
+            if (dot < 0f) continue;
 
-            // Score: weighted combination of world distance and screen distance
-            float score = distance * 0.4f + screenDist * 0.01f;
-
+            // Score: prefer close + centered targets
+            float score = dist * (1f - dot);
             if (score < bestScore)
             {
                 bestScore = score;
@@ -327,21 +265,80 @@ public partial class CameraController : Node3D
         return best;
     }
 
+    private void SwitchTarget(int direction)
+    {
+        var lockables = GetTree().GetNodesInGroup("Lockable");
+        if (lockables.Count < 2) return;
+
+        Camera3D cam = _camera;
+        Vector3 camRight = cam.GlobalTransform.Basis.X;
+        Node3D best = null;
+        float bestScore = float.MaxValue;
+
+        foreach (var node in lockables)
+        {
+            if (node is not Node3D candidate) continue;
+            if (candidate == _lockTarget) continue;
+            if (candidate is Game.Core.Interfaces.ITargetable t && !t.IsValidTarget) continue;
+
+            float dist = _target.GlobalPosition.DistanceTo(candidate.GlobalPosition);
+            if (dist > LockOnRange) continue;
+
+            Vector3 toCandidate = (candidate.GlobalPosition - _target.GlobalPosition).Normalized();
+            float rightDot = camRight.Dot(toCandidate);
+
+            // Only consider targets in the requested direction
+            if (direction > 0 && rightDot < 0.1f) continue;
+            if (direction < 0 && rightDot > -0.1f) continue;
+
+            float score = dist * (1f - Mathf.Abs(rightDot));
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        if (best != null)
+        {
+            _lockTarget = best;
+            GD.Print($"[Camera] Switched lock to: {best.Name}");
+        }
+    }
+
+    // ── Camera Shake ──────────────────────────────────────────────────
+
+    public void Shake(float intensity, float duration)
+    {
+        _shakeIntensity = intensity;
+        _shakeDuration = duration;
+        _shakeTimer = duration;
+    }
+
+    private void UpdateShake(float dt)
+    {
+        if (_shakeTimer > 0f)
+        {
+            _shakeTimer -= dt;
+            float strength = _shakeIntensity * (_shakeTimer / _shakeDuration);
+            _camera.Position = _cameraRestPosition + new Vector3(
+                (float)GD.RandRange(-strength, strength),
+                (float)GD.RandRange(-strength, strength),
+                0f
+            );
+        }
+        else
+        {
+            _camera.Position = _cameraRestPosition;
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+
     private void ClampPitch()
     {
         Vector3 rot = _springArm.Rotation;
         rot.X = Mathf.Clamp(rot.X, Mathf.DegToRad(MinPitch), Mathf.DegToRad(MaxPitch));
         _springArm.Rotation = rot;
-    }
-
-    public void Shake(float intensity, float duration)
-    {
-        // Only override if new shake is stronger than remaining
-        if (intensity > _shakeIntensity * (_shakeTimer / Mathf.Max(_shakeDuration, 0.001f)))
-        {
-            _shakeIntensity = intensity;
-            _shakeDuration = duration;
-            _shakeTimer = duration;
-        }
     }
 }

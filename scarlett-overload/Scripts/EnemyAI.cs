@@ -58,6 +58,20 @@ public class EnemyAI
     public float TelegraphProgress { get; private set; }
     public float StunRemaining => State == AIState.Stunned ? _stateTimer : 0f;
 
+    /// <summary>
+    /// True when this stun is from a successful parry (not a normal hit reaction).
+    /// Used by the UI to show the parry stun timer bar.
+    /// </summary>
+    public bool IsParryStunned => _isParryStunned;
+
+    /// <summary>
+    /// The total duration of the current parry stun (including extensions).
+    /// Tracked at parry entry and updated on ExtendStun so the UI can
+    /// compute a normalized fill (StunRemaining / ParryStunTotalDuration).
+    /// Returns 0 if not parry-stunned.
+    /// </summary>
+    public float ParryStunTotalDuration { get; private set; }
+
     // ── Aggression / circling ─────────────────────────────────────────
 
     private bool _holdsToken;
@@ -197,6 +211,8 @@ public class EnemyAI
             GD.PushWarning($"[{_owner.Name} AI] ParryStaggerDuration was {duration}s — forcing to 10.5s. Update your .tres!");
             duration = 10.5f;
         }
+
+        ParryStunTotalDuration = duration;
         EnterState(AIState.Stunned, duration);
         GD.Print($"[{_owner.Name} AI] PARRIED — parry stun for {duration}s");
     }
@@ -207,6 +223,7 @@ public class EnemyAI
         _currentAttack = null;
         TelegraphProgress = 0f;
         _isParryStunned = false;
+        ParryStunTotalDuration = 0f;
 
         // Release token on death
         if (_holdsToken)
@@ -226,6 +243,7 @@ public class EnemyAI
     {
         if (State != AIState.Stunned) return;
         _stateTimer += extraTime;
+        ParryStunTotalDuration += extraTime;
         GD.Print($"[{_owner.Name} AI] Stun extended by {extraTime:F1}s (remaining: {_stateTimer:F1}s)");
     }
 
@@ -379,6 +397,7 @@ public class EnemyAI
         if (_stateTimer <= 0f)
         {
             _isParryStunned = false;
+            ParryStunTotalDuration = 0f;
 
             if (HasTarget && _distToTarget <= (_config?.AttackRange ?? 2.5f) * 1.5f)
             {
