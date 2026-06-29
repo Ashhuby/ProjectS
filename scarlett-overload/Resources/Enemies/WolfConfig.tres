@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="EnemyConfig" format=3 uid="uid://dsuxfpvfw1wda"]
 
 [ext_resource type="Script" uid="uid://doh4s4gssab1t" path="res://Core/Data/EnemyConfig.cs" id="1_script"]
-[ext_resource type="Resource" path="res://Resources/Enemies/WolfBite.tres" id="2_attack"]
+[ext_resource type="Resource" uid="uid://dcrnv8np5ykqj" path="res://Resources/Enemies/WolfBite.tres" id="2_attack"]
 
 [resource]
 script = ExtResource("1_script")
@@ -10,15 +10,14 @@ LoseAggroRange = 22.0
 AttackRange = 3.5
 ChaseSpeed = 6.0
 RotationSpeed = 12.0
-LungeSpeed = 10.0
 LungeDuringTelegraph = true
 TelegraphLungeFraction = 0.3
 AttackCooldownMin = 0.6
 AttackCooldownMax = 1.4
 TelegraphDuration = 0.4
-AttackActiveDuration = 0.3
-RecoveryDuration = 0.5
-HitboxDelay = 0.12
+AttackActiveDuration = 1.8
+HitboxDelay = 999.0
+RecoveryDuration = 0.1
 StunDuration = 0.3
 ParryStaggerDuration = 1.6
 VitalStunExtension = 0.8

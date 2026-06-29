@@ -1,11 +1,10 @@
-[gd_resource type="Resource" script_class="AttackData" format=3]
+[gd_resource type="Resource" script_class="AttackData" format=3 uid="uid://dcrnv8np5ykqj"]
 
 [ext_resource type="Script" uid="uid://bwxlnkun5sruk" path="res://Core/Data/AttackData.cs" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
 AttackName = "Wolf Bite"
-Type = 0
 Damage = 20
 KnockbackForce = 6.0
 IsParriable = true

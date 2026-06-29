@@ -48,9 +48,9 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
 
     // ── Visuals ───────────────────────────────────────────────────────
 
-    private MeshInstance3D _mesh;
-    private StandardMaterial3D _material;
-    private Vector3 _baseScale;
+    protected MeshInstance3D _mesh;
+    protected StandardMaterial3D _material;
+    protected Vector3 _baseScale;
 
     // Warning indicator
     private MeshInstance3D _warningIndicator;

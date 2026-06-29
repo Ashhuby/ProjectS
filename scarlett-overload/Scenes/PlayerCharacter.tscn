@@ -157,9 +157,9 @@ Stats = ExtResource("4_wnmxb")
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0.752, 0)
 shape = SubResource("CapsuleShape3D_5gnj7")
 
-[node name="Player" parent="." unique_id=1994836479 instance=ExtResource("2_5gnj7")]
+[node name="Player" parent="." unique_id=1265781344 instance=ExtResource("2_5gnj7")]
 
-[node name="BoneAttachment3D" type="BoneAttachment3D" parent="Player/BodyRig/Skeleton3D" parent_id_path=PackedInt32Array(1994836479, 1321810590) index="5" unique_id=2120186752]
+[node name="BoneAttachment3D" type="BoneAttachment3D" parent="Player/BodyRig/Skeleton3D" parent_id_path=PackedInt32Array(1265781344, 1283037426) index="5" unique_id=2120186752]
 transform = Transform3D(-0.2285812, -0.9726326, 0.041667033, 0.9613669, -0.23226261, -0.14773953, 0.15337397, 0.0062867557, 0.9881479, -0.58736527, 1.5346909, -0.118236765)
 bone_name = "hand.R"
 bone_idx = 29
