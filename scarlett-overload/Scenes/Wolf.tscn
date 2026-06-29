@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://cgubsrm4pra8u"]
+
+[ext_resource type="Script" uid="uid://cfd4vywlwht8t" path="res://Scripts/EnemyBase.cs" id="1_script"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="2_hurtbox"]
+[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="3_hitbox"]
+[ext_resource type="Resource" uid="uid://dsuxfpvfw1wda" path="res://Resources/Enemies/WolfConfig.tres" id="4_config"]
+[ext_resource type="Resource" uid="uid://bhyvnycj2gcvt" path="res://Resources/Enemies/WolfStats.tres" id="5_stats"]
+[ext_resource type="PackedScene" uid="uid://lhhefifhrrn1" path="res://Assets/Models/Wolf.glb" id="6_model"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(0.5, 0.7, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hurt"]
+size = Vector3(0.6, 0.8, 1.2)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_bite"]
+
+[node name="Wolf" type="CharacterBody3D" unique_id=421339647 groups=["Lockable"]]
+script = ExtResource("1_script")
+Config = ExtResource("4_config")
+Stats = ExtResource("5_stats")
+
+[node name="WolfModel" parent="." unique_id=1642951775 instance=ExtResource("6_model")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=66220457]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+shape = SubResource("BoxShape3D_body")
+
+[node name="Hurtbox" type="Area3D" parent="." unique_id=74041666]
+collision_layer = 16
+collision_mask = 0
+script = ExtResource("2_hurtbox")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox" unique_id=1991261093]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 0, 0.6389892, 0)
+shape = SubResource("BoxShape3D_hurt")
+debug_color = Color(0.35950977, 0.6179612, 0, 0.41960785)
+
+[node name="Hitbox" type="Area3D" parent="." unique_id=1898357507]
+collision_layer = 8
+collision_mask = 4
+script = ExtResource("3_hitbox")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hitbox" unique_id=587131749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8519566, 0.57111955)
+shape = SubResource("SphereShape3D_bite")

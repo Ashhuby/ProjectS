@@ -12,6 +12,11 @@ using Godot;
 ///   - ShouldTakeDamage (from CharacterBase damage pipeline)
 ///   - OnDamageTaken / OnDeath (from CharacterBase callbacks)
 ///   - Animation callbacks (routed from PlayerCharacter)
+///
+/// Attack-cancel-into-parry: pressing parry during any attack animation
+/// immediately cancels the attack, deactivates the hitbox, and enters
+/// the parry state. This makes parry the universal defensive option —
+/// you can always reach it. Sekiro does the same thing.
 /// </summary>
 public class PlayerCombat
 {
@@ -167,8 +172,19 @@ public class PlayerCombat
 
     public void HandleParryInput()
     {
+        // Parry from Free — normal case
         if (State == CombatState.Free)
+        {
             EnterParry();
+            return;
+        }
+
+        // Attack-cancel-into-parry — cancel any attack mid-swing
+        if (State == CombatState.Attacking)
+        {
+            CancelAttackIntoParry();
+            return;
+        }
     }
 
     /// <summary>
@@ -239,6 +255,29 @@ public class PlayerCombat
         _currentAttack = null;
         _playback.Travel("Parry");
         GD.Print("[Combat] Parry started");
+    }
+
+    /// <summary>
+    /// Cancel the current attack and immediately enter parry.
+    /// Deactivates the hitbox, stops the trail, resets combo state,
+    /// then transitions to the parry animation.
+    /// </summary>
+    private void CancelAttackIntoParry()
+    {
+        // Clean up the attack we're interrupting
+        _hitbox.Deactivate();
+        _trail?.StopEmitting();
+        _comboStep = 0;
+        _attackBuffered = false;
+        _inComboWindow = false;
+        _currentAttack = null;
+        _isVitalThrusting = false;
+
+        // Go directly to parry
+        State = CombatState.Parrying;
+        _isParryActive = false;
+        _playback.Travel("Parry");
+        GD.Print("[Combat] Attack cancelled → Parry");
     }
 
     private void EnterStunned()

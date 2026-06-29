@@ -7,21 +7,15 @@ using Godot;
 
 /// <summary>
 /// Working enemy with AI. Extends CharacterBase for health/knockback,
-/// composes EnemyAI for behavior. Finds the first MeshInstance3D in the
-/// scene tree for visual feedback (state colors, scale pulses).
+/// composes EnemyAI for behavior. Creates capsule visuals by default —
+/// subclass and override CreateVisuals() for proper enemy models.
 ///
 /// Scene requirements:
 ///   - Root: CharacterBody3D with this script, in group "Lockable"
-///   - Child: imported Blender model with at least one MeshInstance3D
 ///   - Child: Hurtbox (Area3D) — layer EnemyHurtbox (16), mask 0
 ///   - Child: Hitbox (Area3D) named "Hitbox" — layer EnemyHitbox (8), mask PlayerHurtbox (4)
 ///   - Assign EnemyConfig resource to the Config export
 ///   - Assign CharacterStats resource to the Stats export (inherited)
-///
-/// Above-head indicators:
-///   - Parriable attack: orange diamond (Sekiro-style "deflect me" signal)
-///   - Non-parriable attack: red sphere (danger — dodge, don't parry)
-///   - Both pulse during telegraph and go solid during active attack
 /// </summary>
 public partial class EnemyBase : CharacterBase, ILockOnTarget
 {
@@ -58,11 +52,9 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
     private StandardMaterial3D _material;
     private Vector3 _baseScale;
 
-    // Warning indicators — two meshes, one for parriable (diamond), one for unparriable (sphere)
-    private MeshInstance3D _parryIndicator;     // orange diamond — "deflect this"
-    private StandardMaterial3D _parryIndicatorMat;
-    private MeshInstance3D _dangerIndicator;    // red sphere — "don't parry, dodge"
-    private StandardMaterial3D _dangerIndicatorMat;
+    // Warning indicator
+    private MeshInstance3D _warningIndicator;
+    private StandardMaterial3D _warningMat;
 
     // Vital indicator (3D diamond at vital position)
     private MeshInstance3D _vitalIndicator;
@@ -114,7 +106,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _vitalSystem = new VitalSystem(this, Config);
 
         CreateVisuals();
-        CreateAttackIndicators();
+        CreateWarningIndicator();
         CreateVitalIndicator();
         CreateHealthBar();
 
@@ -174,8 +166,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
     {
         _ai.OnDeath();
         _hitbox.Deactivate();
-        _parryIndicator.Visible = false;
-        _dangerIndicator.Visible = false;
+        _warningIndicator.Visible = false;
         HideVitalIndicator();
         _rotationLocked = false;
         IsCurrentAttackParriable = false;
@@ -280,6 +271,12 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _ai.ExtendStun(extraTime);
     }
 
+    public void CollapseStun(float graceTime)
+    {
+        _ai.CollapseStun(graceTime);
+        _rotationLocked = false;
+    }
+
     // ══════════════════════════════════════════════════════════════════
     //  EVENT HANDLERS
     // ══════════════════════════════════════════════════════════════════
@@ -341,120 +338,65 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
     {
         var aiState = _ai.State;
 
-        // ── Attack indicators ─────────────────────────────────────
-        // During telegraph: determine parriability from the queued attack.
-        // During attack: use the live IsCurrentAttackParriable flag
-        // (which animation tracks may have overridden).
-        bool showAttackIndicator = aiState == EnemyAI.AIState.Telegraphing
-                                || aiState == EnemyAI.AIState.Attacking;
+        // Warning indicator — visible during telegraph and attack
+        bool showWarning = aiState == EnemyAI.AIState.Telegraphing
+                        || aiState == EnemyAI.AIState.Attacking;
+        _warningIndicator.Visible = showWarning;
 
-        if (showAttackIndicator)
+        if (aiState == EnemyAI.AIState.Telegraphing)
         {
-            // Determine parriability — telegraph uses queued attack data,
-            // active attack uses the live flag
-            bool isParriable;
-            if (aiState == EnemyAI.AIState.Telegraphing)
-                isParriable = _ai.CurrentAttack?.IsParriable ?? false;
-            else
-                isParriable = IsCurrentAttackParriable;
+            float p = _ai.TelegraphProgress;
 
-            // Show the correct indicator
-            _parryIndicator.Visible = isParriable;
-            _dangerIndicator.Visible = !isParriable;
+            // Warning pulses faster as attack approaches
+            float pulseSpeed = Mathf.Lerp(8f, 30f, p);
+            float bob = Mathf.Sin(p * pulseSpeed * Mathf.Pi) * 0.1f;
+            _warningIndicator.Position = new Vector3(0f, 2.5f + bob, 0f);
 
-            if (aiState == EnemyAI.AIState.Telegraphing)
-            {
-                float p = _ai.TelegraphProgress;
+            var col = new Color(1f, Mathf.Lerp(0.8f, 0f, p), 0f);
+            _warningMat.AlbedoColor = col;
+            _warningMat.Emission = col;
+            _warningMat.EmissionEnergyMultiplier = Mathf.Lerp(2f, 6f, p);
 
-                // Pulse faster as attack approaches
-                float pulseSpeed = Mathf.Lerp(8f, 30f, p);
-                float bob = Mathf.Sin(p * pulseSpeed * Mathf.Pi) * 0.1f;
-                float indicatorY = 2.5f + bob;
-
-                if (isParriable)
-                {
-                    _parryIndicator.Position = new Vector3(0f, indicatorY, 0f);
-
-                    // Orange → bright orange as telegraph progresses (Sekiro parry color)
-                    var col = new Color(1f, Mathf.Lerp(0.65f, 0.4f, p), 0f);
-                    _parryIndicatorMat.AlbedoColor = col;
-                    _parryIndicatorMat.Emission = col;
-                    _parryIndicatorMat.EmissionEnergyMultiplier = Mathf.Lerp(3f, 8f, p);
-                }
-                else
-                {
-                    _dangerIndicator.Position = new Vector3(0f, indicatorY, 0f);
-
-                    // Red pulses brighter
-                    var col = new Color(1f, Mathf.Lerp(0.2f, 0f, p), 0f);
-                    _dangerIndicatorMat.AlbedoColor = col;
-                    _dangerIndicatorMat.Emission = col;
-                    _dangerIndicatorMat.EmissionEnergyMultiplier = Mathf.Lerp(2f, 6f, p);
-                }
-
-                // Body scales up during wind-up
-                _mesh.Scale = _baseScale * Mathf.Lerp(1f, 1.15f, p);
-                _material.AlbedoColor = new Color(
-                    Mathf.Lerp(0.7f, 1f, p),
-                    Mathf.Lerp(0.2f, 0f, p),
-                    Mathf.Lerp(0.2f, 0f, p));
-            }
-            else // Attacking — solid, no pulse
-            {
-                if (isParriable)
-                {
-                    _parryIndicator.Position = new Vector3(0f, 2.5f, 0f);
-                    _parryIndicatorMat.AlbedoColor = new Color(1f, 0.5f, 0f);
-                    _parryIndicatorMat.Emission = new Color(1f, 0.5f, 0f);
-                    _parryIndicatorMat.EmissionEnergyMultiplier = 10f;
-                }
-                else
-                {
-                    _dangerIndicator.Position = new Vector3(0f, 2.5f, 0f);
-                    _dangerIndicatorMat.AlbedoColor = new Color(1f, 0f, 0f);
-                    _dangerIndicatorMat.Emission = new Color(1f, 0f, 0f);
-                    _dangerIndicatorMat.EmissionEnergyMultiplier = 8f;
-                }
-
-                _material.AlbedoColor = Colors.White;
-                _mesh.Scale = _baseScale * 1.2f;
-            }
+            // Body scales up during wind-up
+            _mesh.Scale = _baseScale * Mathf.Lerp(1f, 1.15f, p);
+            _material.AlbedoColor = new Color(
+                Mathf.Lerp(0.7f, 1f, p),
+                Mathf.Lerp(0.2f, 0f, p),
+                Mathf.Lerp(0.2f, 0f, p));
+        }
+        else if (aiState == EnemyAI.AIState.Attacking)
+        {
+            _material.AlbedoColor = Colors.White;
+            _mesh.Scale = _baseScale * 1.2f;
+            _warningMat.AlbedoColor = new Color(1f, 0f, 0f);
+            _warningMat.Emission = new Color(1f, 0f, 0f);
+            _warningMat.EmissionEnergyMultiplier = 8f;
+        }
+        else if (aiState == EnemyAI.AIState.Recovering)
+        {
+            _material.AlbedoColor = new Color(0.4f, 0.4f, 0.5f);
+            _mesh.Scale = _baseScale;
+        }
+        else if (aiState == EnemyAI.AIState.Stunned)
+        {
+            // Stunned color stays from the flash — no override needed
+            _mesh.Scale = _baseScale;
+        }
+        else if (aiState == EnemyAI.AIState.Chasing)
+        {
+            _material.AlbedoColor = new Color(0.8f, 0.25f, 0.15f);
+            _mesh.Scale = _baseScale;
+        }
+        else if (aiState == EnemyAI.AIState.Engaging)
+        {
+            _material.AlbedoColor = new Color(0.7f, 0.2f, 0.2f);
+            _mesh.Scale = _baseScale;
         }
         else
         {
-            _parryIndicator.Visible = false;
-            _dangerIndicator.Visible = false;
-        }
-
-        // ── Body color by state (non-attack states) ──────────────
-        if (!showAttackIndicator)
-        {
-            if (aiState == EnemyAI.AIState.Recovering)
-            {
-                _material.AlbedoColor = new Color(0.4f, 0.4f, 0.5f);
-                _mesh.Scale = _baseScale;
-            }
-            else if (aiState == EnemyAI.AIState.Stunned)
-            {
-                // Stunned color stays from the flash — no override needed
-                _mesh.Scale = _baseScale;
-            }
-            else if (aiState == EnemyAI.AIState.Chasing)
-            {
-                _material.AlbedoColor = new Color(0.8f, 0.25f, 0.15f);
-                _mesh.Scale = _baseScale;
-            }
-            else if (aiState == EnemyAI.AIState.Engaging)
-            {
-                _material.AlbedoColor = new Color(0.7f, 0.2f, 0.2f);
-                _mesh.Scale = _baseScale;
-            }
-            else
-            {
-                // Idle
-                _material.AlbedoColor = new Color(0.5f, 0.15f, 0.15f);
-                _mesh.Scale = _baseScale;
-            }
+            // Idle
+            _material.AlbedoColor = new Color(0.5f, 0.15f, 0.15f);
+            _mesh.Scale = _baseScale;
         }
     }
 
@@ -475,21 +417,18 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
             _prevVitalState = currentState;
         }
 
-        // ── Active vital — update position and pulse ──────────────
+        // ── Pulse animation when active ───────────────────────────
         if (_vitalSystem.IsActive && _vitalIndicator.Visible)
         {
-            _vitalIndicator.GlobalPosition = _vitalSystem.ActiveVitalWorldPosition;
-
             _vitalPulseTimer += dt;
-            float pulse = 0.5f + 0.5f * Mathf.Sin(_vitalPulseTimer * 8f);
+            float pulse = 1f + 0.25f * Mathf.Sin(_vitalPulseTimer * 8f);
+            _vitalIndicator.Scale = Vector3.One * 0.35f * pulse;
 
-            bool isMini = currentState == VitalSystem.VitalState.MiniActive;
-            float baseEnergy = isMini ? 4f : 3f;
-            _vitalMat.EmissionEnergyMultiplier = baseEnergy + pulse * 3f;
+            // Slow rotation for visual interest
+            _vitalIndicator.RotateY(2f * dt);
 
-            float scale = isMini ? 0.15f : 0.25f;
-            float scaleBoost = scale + pulse * 0.05f;
-            _vitalIndicator.Scale = new Vector3(scaleBoost, scaleBoost, scaleBoost);
+            // Keep positioned at vital world position (TopLevel = true)
+            _vitalIndicator.GlobalPosition = _vitalSystem.ActiveVitalWorldPosition;
         }
     }
 
@@ -498,28 +437,48 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         switch (to)
         {
             case VitalSystem.VitalState.PrimaryActive:
-                ShowVitalIndicator(new Color(0.2f, 1f, 0.2f), 0.25f);
+                ShowVitalIndicator(isPrimary: true);
                 break;
 
             case VitalSystem.VitalState.MiniActive:
-                ShowVitalIndicator(new Color(0.2f, 0.6f, 1f), 0.15f);
+                // Burst at old position, then reposition
+                SpawnVitalPopBurst();
+                ShowVitalIndicator(isPrimary: false);
                 break;
 
             case VitalSystem.VitalState.Complete:
+                SpawnVitalPopBurst();
+                HideVitalIndicator();
+                break;
+
             case VitalSystem.VitalState.Failed:
             case VitalSystem.VitalState.Inactive:
-                HideVitalIndicator();
+                if (from == VitalSystem.VitalState.PrimaryActive
+                    || from == VitalSystem.VitalState.MiniActive)
+                    HideVitalIndicator();
                 break;
         }
     }
 
-    private void ShowVitalIndicator(Color color, float scale)
+    private void ShowVitalIndicator(bool isPrimary)
     {
-        _vitalMat.AlbedoColor = color;
-        _vitalMat.Emission = color;
-        _vitalIndicator.Scale = new Vector3(scale, scale, scale);
-        _vitalIndicator.Visible = true;
         _vitalPulseTimer = 0f;
+
+        // Primary: warm orange. Mini: bright yellow-white.
+        Color col = isPrimary
+            ? new Color(1f, 0.6f, 0.1f)
+            : new Color(1f, 0.95f, 0.4f);
+
+        _vitalMat.AlbedoColor = col;
+        _vitalMat.Emission = col;
+        _vitalMat.EmissionEnergyMultiplier = isPrimary ? 4f : 6f;
+
+        _vitalIndicator.GlobalPosition = _vitalSystem.ActiveVitalWorldPosition;
+        _vitalIndicator.Scale = Vector3.One * 0.35f;
+        _vitalIndicator.Visible = true;
+
+        string label = isPrimary ? "PRIMARY" : "MINI";
+        GD.Print($"[{Name}] Vital indicator shown: {label}");
     }
 
     private void HideVitalIndicator()
@@ -527,25 +486,71 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _vitalIndicator.Visible = false;
     }
 
+    private void SpawnVitalPopBurst()
+    {
+        if (!_vitalIndicator.Visible) return;
+
+        // Quick scale-up flash then hide — placeholder for particle burst
+        Vector3 burstPos = _vitalIndicator.GlobalPosition;
+        var burstTween = CreateTween();
+        burstTween.TweenProperty(_vitalIndicator, "scale",
+            Vector3.One * 0.8f, 0.1f)
+            .SetEase(Tween.EaseType.Out)
+            .SetTrans(Tween.TransitionType.Expo);
+
+        GD.Print($"[{Name}] Vital pop burst at {burstPos}");
+    }
+
+    private void CreateVitalIndicator()
+    {
+        _vitalIndicator = new MeshInstance3D();
+
+        // Diamond shape: rotated box mesh (thin, angled = diamond silhouette)
+        var box = new BoxMesh();
+        box.Size = new Vector3(0.5f, 0.5f, 0.08f);
+        _vitalIndicator.Mesh = box;
+
+        // Rotate 45° on Z to create diamond shape
+        _vitalIndicator.RotationDegrees = new Vector3(0f, 0f, 45f);
+
+        _vitalMat = new StandardMaterial3D
+        {
+            AlbedoColor = new Color(1f, 0.6f, 0.1f),
+            EmissionEnabled = true,
+            Emission = new Color(1f, 0.6f, 0.1f),
+            EmissionEnergyMultiplier = 4f,
+            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled,
+            NoDepthTest = true,
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded
+        };
+        _vitalIndicator.MaterialOverride = _vitalMat;
+
+        // TopLevel so it positions in world space, not relative to enemy
+        _vitalIndicator.TopLevel = true;
+        _vitalIndicator.Visible = false;
+        AddChild(_vitalIndicator);
+    }
+
     // ══════════════════════════════════════════════════════════════════
-    //  VISUAL CONSTRUCTION
+    //  VISUALS SETUP (override for real models)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Find the enemy's body mesh from the imported Blender model.
-    /// Searches children recursively for the first MeshInstance3D.
-    /// Assigns a StandardMaterial3D override for state-based color changes.
+    /// Creates default capsule visuals. Override in subclasses
+    /// that use actual enemy models — set _mesh and _material
+    /// to your model's MeshInstance3D and material.
     /// </summary>
     protected virtual void CreateVisuals()
     {
-        _mesh = FindMeshRecursive(this);
+        _mesh = GetNodeOrNull<MeshInstance3D>("MeshInstance3D");
 
         if (_mesh == null)
         {
-            GD.PrintErr($"[{Name}] No MeshInstance3D found in scene tree — enemy will have no visuals.");
-            // Create an invisible placeholder so null checks don't explode
             _mesh = new MeshInstance3D();
-            _mesh.Visible = false;
+            var capsule = new CapsuleMesh { Radius = 0.4f, Height = 1.8f };
+            _mesh.Mesh = capsule;
+            _mesh.Position = new Vector3(0f, 0.9f, 0f);
             AddChild(_mesh);
         }
 
@@ -557,97 +562,23 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _baseScale = _mesh.Scale;
     }
 
-    /// <summary>
-    /// Recursively find the first MeshInstance3D child in the scene tree.
-    /// Skips indicator meshes we create ourselves (parry/danger/vital).
-    /// </summary>
-    private static MeshInstance3D FindMeshRecursive(Node root)
+    private void CreateWarningIndicator()
     {
-        foreach (var child in root.GetChildren())
-        {
-            if (child is MeshInstance3D mesh)
-                return mesh;
+        _warningIndicator = new MeshInstance3D();
+        var sphere = new SphereMesh { Radius = 0.2f, Height = 0.4f };
+        _warningIndicator.Mesh = sphere;
 
-            var found = FindMeshRecursive(child);
-            if (found != null)
-                return found;
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Two attack indicators above the enemy's head:
-    ///   - Parry indicator: orange diamond — signals "this attack is parriable"
-    ///   - Danger indicator: red sphere — signals "unblockable, dodge this"
-    /// Only one is visible at a time during telegraph/attack phases.
-    /// </summary>
-    private void CreateAttackIndicators()
-    {
-        // ── Parry indicator (orange diamond) ──────────────────────
-        _parryIndicator = new MeshInstance3D();
-        var diamond = new PrismMesh
+        _warningMat = new StandardMaterial3D
         {
-            Size = new Vector3(0.25f, 0.35f, 0.25f)
-        };
-        _parryIndicator.Mesh = diamond;
-        // Rotate 180° on X so the prism points upward like a diamond
-        _parryIndicator.RotationDegrees = new Vector3(180f, 0f, 0f);
-
-        _parryIndicatorMat = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(1f, 0.55f, 0f),
+            AlbedoColor = new Color(1f, 0.8f, 0f),
             EmissionEnabled = true,
-            Emission = new Color(1f, 0.55f, 0f),
-            EmissionEnergyMultiplier = 4f,
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            NoDepthTest = true
+            Emission = new Color(1f, 0.8f, 0f),
+            EmissionEnergyMultiplier = 3f
         };
-        _parryIndicator.MaterialOverride = _parryIndicatorMat;
-        _parryIndicator.Position = new Vector3(0f, 2.5f, 0f);
-        _parryIndicator.Visible = false;
-        AddChild(_parryIndicator);
-
-        // ── Danger indicator (red sphere) ─────────────────────────
-        _dangerIndicator = new MeshInstance3D();
-        var sphere = new SphereMesh { Radius = 0.15f, Height = 0.3f };
-        _dangerIndicator.Mesh = sphere;
-
-        _dangerIndicatorMat = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(1f, 0.1f, 0f),
-            EmissionEnabled = true,
-            Emission = new Color(1f, 0.1f, 0f),
-            EmissionEnergyMultiplier = 3f,
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            NoDepthTest = true
-        };
-        _dangerIndicator.MaterialOverride = _dangerIndicatorMat;
-        _dangerIndicator.Position = new Vector3(0f, 2.5f, 0f);
-        _dangerIndicator.Visible = false;
-        AddChild(_dangerIndicator);
-    }
-
-    private void CreateVitalIndicator()
-    {
-        _vitalIndicator = new MeshInstance3D();
-        var diamond = new PrismMesh
-        {
-            Size = new Vector3(0.25f, 0.35f, 0.25f)
-        };
-        _vitalIndicator.Mesh = diamond;
-        _vitalIndicator.RotationDegrees = new Vector3(180f, 0f, 0f);
-
-        _vitalMat = new StandardMaterial3D
-        {
-            EmissionEnabled = true,
-            EmissionEnergyMultiplier = 3f,
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            NoDepthTest = true
-        };
-        _vitalIndicator.MaterialOverride = _vitalMat;
-        _vitalIndicator.Visible = false;
-        _vitalIndicator.TopLevel = true;
-        AddChild(_vitalIndicator);
+        _warningIndicator.MaterialOverride = _warningMat;
+        _warningIndicator.Position = new Vector3(0f, 2.5f, 0f);
+        _warningIndicator.Visible = false;
+        AddChild(_warningIndicator);
     }
 
     private void CreateHealthBar()
@@ -669,8 +600,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _vitalSystem?.Reset();
         _mesh.Scale = _baseScale;
         _material.AlbedoColor = new Color(0.5f, 0.15f, 0.15f);
-        _parryIndicator.Visible = false;
-        _dangerIndicator.Visible = false;
+        _warningIndicator.Visible = false;
         HideVitalIndicator();
         _prevVitalState = VitalSystem.VitalState.Inactive;
         SetHurtboxActive(true);

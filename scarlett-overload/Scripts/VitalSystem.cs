@@ -17,6 +17,12 @@ using System.Collections.Generic;
 ///
 /// Cardinal directions are computed in world space using the enemy's
 /// locked rotation at the moment of parry.
+///
+/// Post-mini-pop stun collapse: after the mini vital is popped, the
+/// remaining parry stun is collapsed to a short grace period (0.4s
+/// by default) so the enemy recovers quickly and re-engages. Without
+/// this, the enemy stands motionless for the remainder of a 2.5s+ stun
+/// which feels broken.
 /// </summary>
 public class VitalSystem
 {
@@ -48,6 +54,13 @@ public class VitalSystem
     // from the enemy's locked rotation
     private Vector3[] _worldCardinals;
     private int _primaryIndex = -1;
+
+    /// <summary>
+    /// How long the enemy stays stunned after the mini vital pops.
+    /// Short grace period so the player can see the completion VFX
+    /// before the enemy recovers.
+    /// </summary>
+    private const float PostMiniPopStunGrace = 0.4f;
 
     // ══════════════════════════════════════════════════════════════════
     //  CONSTRUCTION
@@ -227,8 +240,16 @@ public class VitalSystem
             _config.SpeedBoostMultiplier,
             _config.SpeedBoostDuration);
 
+        // ── Collapse remaining stun ───────────────────────────────
+        // Without this, the enemy stands motionless for the rest of
+        // a 2.5s+ parry stun after the sequence is already complete.
+        // CollapseStun clamps the remaining stun to a short grace
+        // period so the enemy recovers and re-engages quickly.
+        _owner.CollapseStun(PostMiniPopStunGrace);
+
         GD.Print($"[VitalSystem] SEQUENCE COMPLETE — speed boost: " +
-                 $"{_config.SpeedBoostMultiplier}x for {_config.SpeedBoostDuration}s");
+                 $"{_config.SpeedBoostMultiplier}x for {_config.SpeedBoostDuration}s, " +
+                 $"stun collapsing to {PostMiniPopStunGrace}s");
     }
 
     private void Fail(string reason)
@@ -286,83 +307,58 @@ public class VitalSystem
     /// </summary>
     private int PickDirection(Vector3 playerWorldPos, int excludeIndex)
     {
-        Vector3 enemyToPlayer = playerWorldPos - _owner.GlobalPosition;
-        enemyToPlayer.Y = 0f;
-        if (enemyToPlayer.LengthSquared() > 0.001f)
-            enemyToPlayer = enemyToPlayer.Normalized();
+        var candidates = new List<int>();
 
-        var validIndices = new List<int>();
         for (int i = 0; i < 4; i++)
         {
             if (i == excludeIndex) continue;
-            validIndices.Add(i);
-        }
 
-        // Exclude the direction most opposite to the player if configured
-        if (!_config.AllowOppositeVitals && validIndices.Count > 1)
-        {
-            float minDot = float.MaxValue;
-            int excludeOpposite = -1;
-
-            foreach (int i in validIndices)
+            // Optionally exclude opposite-to-player direction
+            if (!_config.AllowOppositeVitals)
             {
-                float dot = _worldCardinals[i].Dot(enemyToPlayer);
-                if (dot < minDot)
-                {
-                    minDot = dot;
-                    excludeOpposite = i;
-                }
+                Vector3 toPlayer = (playerWorldPos - _owner.GlobalPosition).Normalized();
+                toPlayer.Y = 0f;
+                float dot = toPlayer.Dot(_worldCardinals[i]);
+                if (dot < -0.5f) continue; // This cardinal faces away from the player
             }
 
-            if (excludeOpposite >= 0)
-                validIndices.Remove(excludeOpposite);
+            candidates.Add(i);
         }
 
-        if (validIndices.Count == 0) return -1;
-
-        return validIndices[GD.RandRange(0, validIndices.Count - 1)];
+        if (candidates.Count == 0) return -1;
+        return candidates[GD.RandRange(0, candidates.Count - 1)];
     }
 
-    /// <summary>
-    /// Check if the player's position relative to the enemy is within
-    /// the angle tolerance of the active vital direction.
-    /// </summary>
-    private bool CheckAngle(Vector3 playerWorldPos)
-    {
-        Vector3 enemyToPlayer = playerWorldPos - _owner.GlobalPosition;
-        enemyToPlayer.Y = 0f;
-
-        if (enemyToPlayer.LengthSquared() < 0.001f)
-            return false;
-
-        enemyToPlayer = enemyToPlayer.Normalized();
-        float dot = enemyToPlayer.Dot(ActiveVitalDirection);
-        float angleDeg = Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(dot, -1f, 1f)));
-
-        return angleDeg <= _config.VitalAngleTolerance;
-    }
-
-    /// <summary>
-    /// Set the active vital direction and world position from a cardinal index.
-    /// </summary>
     private void SetActiveVital(int index)
     {
         ActiveVitalDirection = _worldCardinals[index];
-        float radius = _config.VitalSpawnRadius;
         ActiveVitalWorldPosition = _owner.GlobalPosition
-            + ActiveVitalDirection * radius
-            + new Vector3(0f, 1f, 0f); // center height offset
+            + _worldCardinals[index] * _config.VitalSpawnRadius
+            + new Vector3(0f, 1f, 0f);
+    }
+
+    private bool CheckAngle(Vector3 playerWorldPos)
+    {
+        Vector3 toPlayer = playerWorldPos - _owner.GlobalPosition;
+        toPlayer.Y = 0f;
+        toPlayer = toPlayer.Normalized();
+
+        float dot = toPlayer.Dot(ActiveVitalDirection);
+        float angleRad = Mathf.Acos(Mathf.Clamp(dot, -1f, 1f));
+        float angleDeg = Mathf.RadToDeg(angleRad);
+
+        return angleDeg <= _config.VitalAngleTolerance;
     }
 
     private static string DirectionLabel(int index)
     {
         return index switch
         {
-            0 => "FRONT",
-            1 => "RIGHT",
-            2 => "BACK",
-            3 => "LEFT",
-            _ => "UNKNOWN"
+            0 => "Front",
+            1 => "Right",
+            2 => "Back",
+            3 => "Left",
+            _ => "Unknown"
         };
     }
 }

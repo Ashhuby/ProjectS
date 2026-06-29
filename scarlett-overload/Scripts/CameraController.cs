@@ -1,5 +1,17 @@
+using Game.Autoloads;
 using Godot;
 
+/// <summary>
+/// Third-person camera with lock-on targeting.
+///
+/// Lock-on auto-switch: when locked on and an enemy receives the
+/// attack token from AggressionManager, the camera automatically
+/// switches to that enemy so the player always faces the incoming threat.
+/// Manual flick/stick switching still works to override.
+///
+/// Free-look: mouse AND right stick both work for camera orbit
+/// when not locked on.
+/// </summary>
 public partial class CameraController : Node3D
 {
     [Export] public float MouseSensitivity = 0.002f;
@@ -47,13 +59,22 @@ public partial class CameraController : Node3D
         Input.MouseMode = Input.MouseModeEnum.Captured;
 
         CreateLockIndicator();
+
+        // Subscribe to aggression events for auto-switch
+        if (EventBus.Instance != null)
+            EventBus.Instance.AttackTokenGranted += OnAttackTokenGranted;
+    }
+
+    public override void _ExitTree()
+    {
+        if (EventBus.Instance != null)
+            EventBus.Instance.AttackTokenGranted -= OnAttackTokenGranted;
     }
 
     private void CreateLockIndicator()
     {
         _lockIndicator = new MeshInstance3D();
 
-        // Small white dot — sits at center-mass, not above the head
         var sphere = new SphereMesh();
         sphere.Radius = 0.06f;
         sphere.Height = 0.12f;
@@ -65,21 +86,42 @@ public partial class CameraController : Node3D
         _lockIndicatorMat.Emission = Colors.White;
         _lockIndicatorMat.EmissionEnergyMultiplier = 3f;
         _lockIndicatorMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-
-        // Render on top of everything so it's always visible through the enemy
         _lockIndicatorMat.NoDepthTest = true;
         _lockIndicatorMat.RenderPriority = 10;
 
         _lockIndicator.MaterialOverride = _lockIndicatorMat;
-
         _lockIndicator.Visible = false;
         _lockIndicator.TopLevel = true;
         AddChild(_lockIndicator);
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  AUTO-SWITCH — face the enemy that's about to attack
+    // ══════════════════════════════════════════════════════════════════
+
+    private void OnAttackTokenGranted(Node3D enemy)
+    {
+        if (!_isLockedOn) return;
+        if (enemy == _lockTarget) return;
+        if (enemy == null || !GodotObject.IsInstanceValid(enemy)) return;
+
+        if (enemy is not Game.Core.Interfaces.ITargetable targetable) return;
+        if (!targetable.IsValidTarget) return;
+
+        float dist = _target.GlobalPosition.DistanceTo(enemy.GlobalPosition);
+        if (dist > LockOnRange) return;
+
+        _lockTarget = enemy;
+        GD.Print($"[Camera] Auto-switched lock to attacker: {enemy.Name}");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  INPUT
+    // ══════════════════════════════════════════════════════════════════
+
     public override void _UnhandledInput(InputEvent @event)
     {
-        // Escape toggle — always works
+        // Escape toggle
         if (@event.IsActionPressed("ui_cancel"))
         {
             Input.MouseMode = Input.MouseMode == Input.MouseModeEnum.Captured
@@ -87,7 +129,7 @@ public partial class CameraController : Node3D
                 : Input.MouseModeEnum.Captured;
         }
 
-        // Lock-on toggle — always works
+        // Lock-on toggle
         if (@event.IsActionPressed("lock_on"))
         {
             if (_isLockedOn)
@@ -111,13 +153,17 @@ public partial class CameraController : Node3D
             }
             else
             {
-                // Normal free-look
+                // Normal free-look (mouse)
                 RotateY(-mouseMotion.Relative.X * MouseSensitivity);
                 _springArm.RotateX(-mouseMotion.Relative.Y * MouseSensitivity);
                 ClampPitch();
             }
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  PHYSICS
+    // ══════════════════════════════════════════════════════════════════
 
     public override void _PhysicsProcess(double delta)
     {
@@ -141,6 +187,17 @@ public partial class CameraController : Node3D
 
             UpdateLockOn(dt);
         }
+        else
+        {
+            // Free-look (gamepad right stick)
+            Vector2 stickInput = Input.GetVector("camera_left", "camera_right", "camera_up", "camera_down");
+            if (stickInput.LengthSquared() > 0.01f)
+            {
+                RotateY(-stickInput.X * StickSensitivity * dt);
+                _springArm.RotateX(-stickInput.Y * StickSensitivity * dt);
+                ClampPitch();
+            }
+        }
 
         // Follow target smoothly
         GlobalPosition = GlobalPosition.Lerp(_target.GlobalPosition, FollowSpeed * dt);
@@ -149,7 +206,9 @@ public partial class CameraController : Node3D
         UpdateShake(dt);
     }
 
-    // ── Lock-On Camera ────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  LOCK-ON CAMERA
+    // ══════════════════════════════════════════════════════════════════
 
     private void UpdateLockOn(float dt)
     {
@@ -159,14 +218,12 @@ public partial class CameraController : Node3D
             return;
         }
 
-        // Check if target is still valid (ITargetable)
         if (_lockTarget is Game.Core.Interfaces.ITargetable targetable && !targetable.IsValidTarget)
         {
             DisengageLock();
             return;
         }
 
-        // Range check — disengage if too far
         float distance = _target.GlobalPosition.DistanceTo(_lockTarget.GlobalPosition);
         if (distance > LockOnRange * 1.2f)
         {
@@ -174,7 +231,6 @@ public partial class CameraController : Node3D
             return;
         }
 
-        // Calculate direction from player to target on XZ plane
         Vector3 rawDir = _lockTarget.GlobalPosition - _target.GlobalPosition;
         float heightDiff = rawDir.Y;
         rawDir.Y = 0f;
@@ -184,7 +240,6 @@ public partial class CameraController : Node3D
 
         Vector3 dir = rawDir / horizontalDist;
 
-        // Yaw: rotate rig so camera sits behind player, looking toward target
         float desiredYaw = Mathf.Atan2(-dir.X, -dir.Z);
         float currentYaw = Rotation.Y;
         Rotation = new Vector3(
@@ -193,7 +248,6 @@ public partial class CameraController : Node3D
             Rotation.Z
         );
 
-        // Pitch: default offset plus height compensation
         float desiredPitch = Mathf.DegToRad(LockOnPitchOffset);
         desiredPitch -= Mathf.Atan2(heightDiff, horizontalDist) * 0.5f;
         desiredPitch = Mathf.Clamp(desiredPitch, Mathf.DegToRad(MinPitch), Mathf.DegToRad(MaxPitch));
@@ -202,14 +256,15 @@ public partial class CameraController : Node3D
         springRot.X = Mathf.Lerp(springRot.X, desiredPitch, LockOnPitchSpeed * dt);
         _springArm.Rotation = springRot;
 
-        // Update lock indicator — center-mass position (TargetPosition = GlobalPos + (0,1,0))
         if (_lockTarget is Game.Core.Interfaces.ITargetable t)
             _lockIndicator.GlobalPosition = t.TargetPosition;
         else
             _lockIndicator.GlobalPosition = _lockTarget.GlobalPosition + new Vector3(0f, 1f, 0f);
     }
 
-    // ── Target Selection ──────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  TARGET SELECTION
+    // ══════════════════════════════════════════════════════════════════
 
     private void TryLockOn()
     {
@@ -250,10 +305,8 @@ public partial class CameraController : Node3D
             Vector3 toCandidate = (candidate.GlobalPosition - _target.GlobalPosition).Normalized();
             float dot = camForward.Dot(toCandidate);
 
-            // Behind camera — skip
             if (dot < 0f) continue;
 
-            // Score: prefer close + centered targets
             float score = dist * (1f - dot);
             if (score < bestScore)
             {
@@ -287,7 +340,6 @@ public partial class CameraController : Node3D
             Vector3 toCandidate = (candidate.GlobalPosition - _target.GlobalPosition).Normalized();
             float rightDot = camRight.Dot(toCandidate);
 
-            // Only consider targets in the requested direction
             if (direction > 0 && rightDot < 0.1f) continue;
             if (direction < 0 && rightDot > -0.1f) continue;
 
@@ -306,7 +358,9 @@ public partial class CameraController : Node3D
         }
     }
 
-    // ── Camera Shake ──────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  CAMERA SHAKE
+    // ══════════════════════════════════════════════════════════════════
 
     public void Shake(float intensity, float duration)
     {
@@ -332,8 +386,6 @@ public partial class CameraController : Node3D
             _camera.Position = _cameraRestPosition;
         }
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────
 
     private void ClampPitch()
     {

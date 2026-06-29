@@ -3,30 +3,23 @@ using Game.Core.Data;
 using Godot;
 
 /// <summary>
-/// Enemy AI state machine. Plain C# class — same composition pattern
-/// as PlayerCombat. EnemyBase creates it and calls:
-///   - Tick(dt) every physics frame
-///   - ComputeVelocity for movement
-///   - OnDamageTaken / OnParried / OnDeath for reactions
+/// Enemy AI state machine — composition pattern, plain C# class.
 ///
-/// The AI finds the player automatically via the "Player" group.
-/// No NavigationAgent — uses direct movement. Good for open arenas.
-///
-/// Aggression management: only the enemy holding the attack token
-/// (from AggressionManager) can transition from Engaging to Telegraphing.
-/// Everyone else circles the player at engagement range.
+/// Lunge: enemies with LungeSpeed > 0 close gap during attack.
+/// Hitbox delay: enemies with HitboxDelay > 0 activate hitbox late
+/// in the attack so the lunge connects at the right moment.
 /// </summary>
 public class EnemyAI
 {
     public enum AIState
     {
-        Idle,          // No target detected
-        Chasing,       // Moving toward player
-        Engaging,      // In range, waiting for cooldown
-        Telegraphing,  // Wind-up, visual warning
-        Attacking,     // Hitbox active, committed
-        Recovering,    // Post-attack, vulnerable
-        Stunned        // Hit reaction or parry stagger
+        Idle,
+        Chasing,
+        Engaging,
+        Telegraphing,
+        Attacking,
+        Recovering,
+        Stunned
     }
 
     public AIState State { get; private set; } = AIState.Idle;
@@ -35,8 +28,6 @@ public class EnemyAI
     private readonly Hitbox _hitbox;
     private readonly EnemyConfig _config;
 
-    // ── Target tracking ──────────────────────────────────────────────
-
     private Node3D _target;
     private float _distToTarget;
     private Vector3 _dirToTarget;
@@ -44,52 +35,29 @@ public class EnemyAI
     public bool HasTarget => _target != null && GodotObject.IsInstanceValid(_target);
     public float DistanceToTarget => _distToTarget;
 
-    // ── Timers ────────────────────────────────────────────────────────
-
     private float _stateTimer;
     private float _attackCooldown;
     private bool _isParryStunned;
-
-    // ── Current attack ────────────────────────────────────────────────
 
     private AttackData _currentAttack;
     public AttackData CurrentAttack => _currentAttack;
 
     public float TelegraphProgress { get; private set; }
     public float StunRemaining => State == AIState.Stunned ? _stateTimer : 0f;
-
-    /// <summary>
-    /// True when this stun is from a successful parry (not a normal hit reaction).
-    /// Used by the UI to show the parry stun timer bar.
-    /// </summary>
     public bool IsParryStunned => _isParryStunned;
-
-    /// <summary>
-    /// The total duration of the current parry stun (including extensions).
-    /// Tracked at parry entry and updated on ExtendStun so the UI can
-    /// compute a normalized fill (StunRemaining / ParryStunTotalDuration).
-    /// Returns 0 if not parry-stunned.
-    /// </summary>
     public float ParryStunTotalDuration { get; private set; }
 
+    // ── Hitbox delay ──────────────────────────────────────────────────
+    private float _attackElapsed;
+    private bool _hitboxActivatedThisAttack;
+
     // ── Aggression / circling ─────────────────────────────────────────
-
     private bool _holdsToken;
-    private float _circleDirection = 1f;  // 1 = clockwise, -1 = counter-clockwise
+    private float _circleDirection = 1f;
     private float _circleTimer;
-
-    /// <summary>Circle strafe speed as fraction of chase speed.</summary>
     private const float CircleSpeedFraction = 0.6f;
-
-    /// <summary>Min seconds before switching circle direction.</summary>
     private const float CircleSwitchMin = 2f;
-
-    /// <summary>Max seconds before switching circle direction.</summary>
     private const float CircleSwitchMax = 4f;
-
-    // ══════════════════════════════════════════════════════════════════
-    //  CONSTRUCTION
-    // ══════════════════════════════════════════════════════════════════
 
     public EnemyAI(CharacterBody3D owner, Hitbox hitbox, EnemyConfig config)
     {
@@ -100,27 +68,26 @@ public class EnemyAI
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  TICK — called every physics frame from ProcessUpdate
+    //  TICK
     // ══════════════════════════════════════════════════════════════════
 
     public void Tick(float dt)
     {
         UpdateTargetTracking();
-
         switch (State)
         {
-            case AIState.Idle:        TickIdle(dt); break;
-            case AIState.Chasing:     TickChasing(dt); break;
-            case AIState.Engaging:    TickEngaging(dt); break;
+            case AIState.Idle:         TickIdle(dt); break;
+            case AIState.Chasing:      TickChasing(dt); break;
+            case AIState.Engaging:     TickEngaging(dt); break;
             case AIState.Telegraphing: TickTelegraphing(dt); break;
-            case AIState.Attacking:   TickAttacking(dt); break;
-            case AIState.Recovering:  TickRecovering(dt); break;
-            case AIState.Stunned:     TickStunned(dt); break;
+            case AIState.Attacking:    TickAttacking(dt); break;
+            case AIState.Recovering:   TickRecovering(dt); break;
+            case AIState.Stunned:      TickStunned(dt); break;
         }
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  MOVEMENT — called from ProcessMovement
+    //  MOVEMENT
     // ══════════════════════════════════════════════════════════════════
 
     public Vector3 ComputeVelocity(Vector3 velocity, float dt)
@@ -133,13 +100,11 @@ public class EnemyAI
         }
         else if (State == AIState.Engaging && !_holdsToken && HasTarget)
         {
-            // Circle the player — move perpendicular to the direction vector
             float speed = (_config?.ChaseSpeed ?? 4f) * CircleSpeedFraction;
             Vector3 perp = new Vector3(-_dirToTarget.Z, 0f, _dirToTarget.X) * _circleDirection;
             velocity.X = perp.X * speed;
             velocity.Z = perp.Z * speed;
 
-            // Maintain engagement distance — nudge in/out
             float idealRange = (_config?.AttackRange ?? 2.5f) * 2f;
             float rangeDiff = _distToTarget - idealRange;
             if (Mathf.Abs(rangeDiff) > 0.5f)
@@ -148,6 +113,23 @@ public class EnemyAI
                 velocity.X += _dirToTarget.X * correction;
                 velocity.Z += _dirToTarget.Z * correction;
             }
+        }
+        else if (State == AIState.Telegraphing
+                 && HasTarget
+                 && (_config?.LungeDuringTelegraph ?? false)
+                 && (_config?.LungeSpeed ?? 0f) > 0f)
+        {
+            float lungeSpeed = _config.LungeSpeed * _config.TelegraphLungeFraction;
+            velocity.X = _dirToTarget.X * lungeSpeed;
+            velocity.Z = _dirToTarget.Z * lungeSpeed;
+        }
+        else if (State == AIState.Attacking
+                 && HasTarget
+                 && (_config?.LungeSpeed ?? 0f) > 0f)
+        {
+            float lungeSpeed = _config.LungeSpeed;
+            velocity.X = _dirToTarget.X * lungeSpeed;
+            velocity.Z = _dirToTarget.Z * lungeSpeed;
         }
         else
         {
@@ -158,10 +140,6 @@ public class EnemyAI
         return velocity;
     }
 
-    /// <summary>
-    /// Direction the enemy should face. Points toward the target
-    /// when in any combat state, zero when idle.
-    /// </summary>
     public Vector3 GetFacingDirection()
     {
         if (State == AIState.Idle || !HasTarget)
@@ -170,7 +148,7 @@ public class EnemyAI
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  REACTIONS — called by EnemyBase
+    //  REACTIONS
     // ══════════════════════════════════════════════════════════════════
 
     public void OnDamageTaken()
@@ -179,12 +157,12 @@ public class EnemyAI
             _hitbox.Deactivate();
 
         _currentAttack = null;
+        _hitboxActivatedThisAttack = false;
         TelegraphProgress = 0f;
 
-        // Don't override parry stun — the vital system manages the timer.
         if (_isParryStunned)
         {
-            GD.Print($"[{_owner.Name} AI] Hit during parry stun — stun timer preserved ({_stateTimer:F1}s remaining)");
+            GD.Print($"[{_owner.Name} AI] Hit during parry stun — timer preserved ({_stateTimer:F1}s)");
             return;
         }
 
@@ -195,23 +173,17 @@ public class EnemyAI
     {
         _hitbox.Deactivate();
         _currentAttack = null;
+        _hitboxActivatedThisAttack = false;
         TelegraphProgress = 0f;
         _isParryStunned = true;
 
-        // Release attack token with parry lockout
         if (_holdsToken)
         {
             _holdsToken = false;
             AggressionManager.Instance?.ForceReleaseWithLockout(_owner);
         }
 
-        float duration = _config?.ParryStaggerDuration ?? 10.5f;
-        if (duration < 10f)
-        {
-            GD.PushWarning($"[{_owner.Name} AI] ParryStaggerDuration was {duration}s — forcing to 10.5s. Update your .tres!");
-            duration = 10.5f;
-        }
-
+        float duration = _config?.ParryStaggerDuration ?? 2.5f;
         ParryStunTotalDuration = duration;
         EnterState(AIState.Stunned, duration);
         GD.Print($"[{_owner.Name} AI] PARRIED — parry stun for {duration}s");
@@ -221,11 +193,11 @@ public class EnemyAI
     {
         _hitbox.Deactivate();
         _currentAttack = null;
+        _hitboxActivatedThisAttack = false;
         TelegraphProgress = 0f;
         _isParryStunned = false;
         ParryStunTotalDuration = 0f;
 
-        // Release token on death
         if (_holdsToken)
         {
             _holdsToken = false;
@@ -235,16 +207,20 @@ public class EnemyAI
         AggressionManager.Instance?.Unregister(_owner);
     }
 
-    /// <summary>
-    /// Add extra time to the current stun. Called by VitalSystem
-    /// when the player pops the primary vital.
-    /// </summary>
     public void ExtendStun(float extraTime)
     {
         if (State != AIState.Stunned) return;
         _stateTimer += extraTime;
         ParryStunTotalDuration += extraTime;
         GD.Print($"[{_owner.Name} AI] Stun extended by {extraTime:F1}s (remaining: {_stateTimer:F1}s)");
+    }
+
+    public void CollapseStun(float graceTime)
+    {
+        if (State != AIState.Stunned) return;
+        if (_stateTimer <= graceTime) return;
+        GD.Print($"[{_owner.Name} AI] Stun collapsed: {_stateTimer:F1}s → {graceTime:F1}s");
+        _stateTimer = graceTime;
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -267,7 +243,6 @@ public class EnemyAI
         {
             AggressionManager.Instance?.Unregister(_owner);
             EnterState(AIState.Idle);
-            GD.Print($"[{_owner.Name} AI] Lost target — returning to idle");
             return;
         }
 
@@ -275,26 +250,19 @@ public class EnemyAI
         {
             _attackCooldown = _config?.RollCooldown() ?? 1.5f;
             EnterState(AIState.Engaging);
-            GD.Print($"[{_owner.Name} AI] In range — engaging");
         }
     }
 
     private void TickEngaging(float dt)
     {
-        if (!HasTarget)
-        {
-            EnterState(AIState.Idle);
-            return;
-        }
+        if (!HasTarget) { EnterState(AIState.Idle); return; }
 
-        // Player moved out of range — chase again
         if (_distToTarget > (_config?.AttackRange ?? 2.5f) * 1.5f)
         {
             EnterState(AIState.Chasing);
             return;
         }
 
-        // Circle direction switching
         _circleTimer -= dt;
         if (_circleTimer <= 0f)
         {
@@ -305,11 +273,8 @@ public class EnemyAI
         _attackCooldown -= dt;
         if (_attackCooldown <= 0f)
         {
-            // Request attack token — only the holder can attack
             if (AggressionManager.Instance == null)
-            {
-                GD.PushWarning($"[{_owner.Name} AI] AggressionManager.Instance is NULL — autoload not registered! All enemies will attack freely. Add AggressionManager as autoload in Project Settings.");
-            }
+                GD.PushWarning($"[{_owner.Name} AI] AggressionManager.Instance is NULL!");
 
             bool granted = AggressionManager.Instance == null
                         || AggressionManager.Instance.RequestToken(_owner);
@@ -322,13 +287,12 @@ public class EnemyAI
                 EnterState(AIState.Telegraphing, telegraphDur);
 
                 if (_currentAttack != null)
-                    GD.Print($"[{_owner.Name} AI] Telegraphing: {_currentAttack.AttackName} (Parriable: {_currentAttack.IsParriable})");
+                    GD.Print($"[{_owner.Name} AI] Telegraphing: {_currentAttack.AttackName}");
                 else
-                    GD.PushWarning($"[{_owner.Name} AI] Telegraphing with NULL attack! Config attacks count: {_config?.Attacks?.Length ?? -1}");
+                    GD.PushWarning($"[{_owner.Name} AI] Telegraphing with NULL attack!");
             }
             else
             {
-                // Denied — retry after a short delay
                 _attackCooldown = 0.5f;
             }
         }
@@ -344,7 +308,16 @@ public class EnemyAI
         {
             float attackDur = _config?.AttackActiveDuration ?? 0.25f;
             EnterState(AIState.Attacking, attackDur);
-            _hitbox.Activate(_currentAttack);
+            _attackElapsed = 0f;
+            _hitboxActivatedThisAttack = false;
+
+            float delay = _config?.HitboxDelay ?? 0f;
+            if (delay <= 0f)
+            {
+                _hitbox.Activate(_currentAttack);
+                _hitboxActivatedThisAttack = true;
+            }
+
             TelegraphProgress = 1f;
             GD.Print($"[{_owner.Name} AI] Attacking!");
         }
@@ -353,13 +326,26 @@ public class EnemyAI
     private void TickAttacking(float dt)
     {
         _stateTimer -= dt;
+        _attackElapsed += dt;
+
+        // Delayed hitbox — lets lunge close distance first
+        if (!_hitboxActivatedThisAttack)
+        {
+            float delay = _config?.HitboxDelay ?? 0f;
+            if (_attackElapsed >= delay)
+            {
+                _hitbox.Activate(_currentAttack);
+                _hitboxActivatedThisAttack = true;
+            }
+        }
+
         if (_stateTimer <= 0f)
         {
             _hitbox.Deactivate();
+            _hitboxActivatedThisAttack = false;
             float recoveryDur = _config?.RecoveryDuration ?? 0.6f;
             EnterState(AIState.Recovering, recoveryDur);
             TelegraphProgress = 0f;
-            GD.Print($"[{_owner.Name} AI] Recovering");
         }
     }
 
@@ -368,7 +354,6 @@ public class EnemyAI
         _stateTimer -= dt;
         if (_stateTimer <= 0f)
         {
-            // Release token when recovery ends
             if (_holdsToken)
             {
                 _holdsToken = false;
@@ -381,13 +366,9 @@ public class EnemyAI
                 EnterState(AIState.Engaging);
             }
             else if (HasTarget)
-            {
                 EnterState(AIState.Chasing);
-            }
             else
-            {
                 EnterState(AIState.Idle);
-            }
         }
     }
 
@@ -405,13 +386,9 @@ public class EnemyAI
                 EnterState(AIState.Engaging);
             }
             else if (HasTarget)
-            {
                 EnterState(AIState.Chasing);
-            }
             else
-            {
                 EnterState(AIState.Idle);
-            }
         }
     }
 
