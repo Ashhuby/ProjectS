@@ -1,5 +1,8 @@
 namespace Game.UI;
 
+using Game.Debug;
+using Game.Characters.Enemies;
+using Game.Camera;
 using Game.Characters;
 using Godot;
 
@@ -359,7 +362,7 @@ public partial class EnemyHealthBar : Node3D
         _cameraController = FindCameraRecursive(root);
 
         if (_cameraController == null)
-            GD.PrintErr("[EnemyHealthBar] CameraController not found — lock-on visibility disabled.");
+            GameLog.Error("[EnemyHealthBar] CameraController not found — lock-on visibility disabled.");
     }
 
     private static CameraController FindCameraRecursive(Node node)

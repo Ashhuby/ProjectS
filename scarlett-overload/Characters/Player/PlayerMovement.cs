@@ -1,6 +1,10 @@
-using Game.Autoloads;
+namespace Game.Characters.Player;
+
+using Game.Debug;
 using Game.Core.Data;
 using Godot;
+using Game.Camera;
+using Game.Autoloads;
 
 /// <summary>
 /// Handles all player movement: camera-relative input → velocity,
@@ -64,7 +68,7 @@ public class PlayerMovement
     {
         _speedMultiplier = multiplier;
         _speedBoostTimer = duration;
-        GD.Print($"[Movement] Speed boost: {multiplier}x for {duration}s");
+        GameLog.MovementLog($"[Movement] Speed boost: {multiplier}x for {duration}s");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -84,7 +88,7 @@ public class PlayerMovement
             {
                 _speedMultiplier = 1f;
                 _speedBoostTimer = 0f;
-                GD.Print("[Movement] Speed boost expired");
+                GameLog.MovementLog("[Movement] Speed boost expired");
             }
         }
     }

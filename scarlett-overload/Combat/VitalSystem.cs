@@ -1,7 +1,11 @@
-using Game.Autoloads;
+namespace Game.Combat;
+
+using Game.Debug;
 using Game.Core.Data;
 using Godot;
 using System.Collections.Generic;
+using Game.Characters.Enemies;
+using Game.Autoloads;
 
 /// <summary>
 /// Fiora-style vital system. Composed into EnemyBase.
@@ -94,7 +98,7 @@ public class VitalSystem
         int chosen = PickDirection(playerWorldPos, excludeIndex: -1);
         if (chosen < 0)
         {
-            GD.PrintErr($"[VitalSystem] No valid direction — aborting");
+            GameLog.Error($"[VitalSystem] No valid direction — aborting");
             return;
         }
 
@@ -103,7 +107,7 @@ public class VitalSystem
         State = VitalState.PrimaryActive;
 
         EventBus.Instance?.EmitVitalRevealed(_owner, ActiveVitalDirection);
-        GD.Print($"[VitalSystem] Primary vital revealed — direction: {DirectionLabel(chosen)}");
+        GameLog.VitalLog($"[VitalSystem] Primary vital revealed — direction: {DirectionLabel(chosen)}");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -190,7 +194,7 @@ public class VitalSystem
         if (bonusDamage > 0)
             _owner.ApplyVitalDamage(bonusDamage);
 
-        GD.Print($"[VitalSystem] PRIMARY POPPED — burst damage: {bonusDamage}");
+        GameLog.VitalLog($"[VitalSystem] PRIMARY POPPED — burst damage: {bonusDamage}");
         EventBus.Instance?.EmitVitalPopped(_owner, isPrimary: true);
 
         // ── Extend stun ───────────────────────────────────────────
@@ -201,7 +205,7 @@ public class VitalSystem
         if (miniIndex < 0)
         {
             // Edge case: no valid direction left — complete early
-            GD.Print("[VitalSystem] No valid mini direction — completing");
+            GameLog.VitalLog("[VitalSystem] No valid mini direction — completing");
             State = VitalState.Complete;
             EventBus.Instance?.EmitVitalSequenceComplete(_owner, hitBoth: false);
             return;
@@ -213,7 +217,7 @@ public class VitalSystem
         // Load the vital thrust for the player
         EventBus.Instance?.EmitVitalThrustLoaded();
         EventBus.Instance?.EmitVitalRevealed(_owner, ActiveVitalDirection);
-        GD.Print($"[VitalSystem] Mini vital revealed — direction: {DirectionLabel(miniIndex)}");
+        GameLog.VitalLog($"[VitalSystem] Mini vital revealed — direction: {DirectionLabel(miniIndex)}");
     }
 
     private void PopMini(DamageData data)
@@ -224,7 +228,7 @@ public class VitalSystem
         if (bonusDamage > 0)
             _owner.ApplyVitalDamage(bonusDamage);
 
-        GD.Print($"[VitalSystem] MINI POPPED — bonus damage: {bonusDamage}");
+        GameLog.VitalLog($"[VitalSystem] MINI POPPED — bonus damage: {bonusDamage}");
 
         State = VitalState.Complete;
         ActiveVitalDirection = Vector3.Zero;
@@ -247,14 +251,14 @@ public class VitalSystem
         // period so the enemy recovers and re-engages quickly.
         _owner.CollapseStun(PostMiniPopStunGrace);
 
-        GD.Print($"[VitalSystem] SEQUENCE COMPLETE — speed boost: " +
+        GameLog.VitalLog($"[VitalSystem] SEQUENCE COMPLETE — speed boost: " +
                  $"{_config.SpeedBoostMultiplier}x for {_config.SpeedBoostDuration}s, " +
                  $"stun collapsing to {PostMiniPopStunGrace}s");
     }
 
     private void Fail(string reason)
     {
-        GD.Print($"[VitalSystem] FAILED — {reason}");
+        GameLog.VitalLog($"[VitalSystem] FAILED — {reason}");
 
         bool wasMini = State == VitalState.MiniActive;
         State = VitalState.Failed;

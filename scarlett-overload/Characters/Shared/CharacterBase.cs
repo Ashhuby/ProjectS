@@ -1,5 +1,7 @@
 namespace Game.Characters;
 
+using Game.Debug;
+
 using Game.Autoloads;
 using Game.Core.Data;
 using Game.Core.Interfaces;
@@ -161,7 +163,7 @@ public abstract partial class CharacterBase : CharacterBody3D, IDamageable
         OnDamageTaken(data);
         EventBus.Instance?.EmitDamageTaken(data);
 
-        GD.Print($"[{Name}] Took {data.Amount} damage. HP: {_currentHealth}/{MaxHealth}");
+        GameLog.CombatLog($"[{Name}] Took {data.Amount} damage. HP: {_currentHealth}/{MaxHealth}");
 
         if (_currentHealth <= 0)
         {

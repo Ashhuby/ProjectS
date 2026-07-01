@@ -1,6 +1,6 @@
 using Game.Autoloads;
 using Godot;
-
+using Game.Characters.Enemies;
 /// <summary>
 /// Fixed HUD compass in the bottom-left showing vital direction.
 /// Always visible — dimmed when no vital is active, lights up when

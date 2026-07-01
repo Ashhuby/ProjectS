@@ -1,5 +1,7 @@
 namespace Game.Autoloads;
 
+using Game.Debug;
+
 using Godot;
 using System.Collections.Generic;
 
@@ -78,7 +80,7 @@ public partial class AggressionManager : Node
         if (!_combatants.Contains(enemy))
         {
             _combatants.Add(enemy);
-            GD.Print($"[Aggression] Registered {enemy.Name} ({_combatants.Count} combatants)");
+            GameLog.AggressionLog($"[Aggression] Registered {enemy.Name} ({_combatants.Count} combatants)");
         }
     }
 
@@ -96,7 +98,7 @@ public partial class AggressionManager : Node
             _cooldownTimer = ReassignDelay;
         }
 
-        GD.Print($"[Aggression] Unregistered {enemy.Name} ({_combatants.Count} combatants)");
+        GameLog.AggressionLog($"[Aggression] Unregistered {enemy.Name} ({_combatants.Count} combatants)");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -120,7 +122,7 @@ public partial class AggressionManager : Node
         // Grant
         _tokenHolder = requester;
         EventBus.Instance?.EmitAttackTokenGranted(requester);
-        GD.Print($"[Aggression] Token granted to {requester.Name}");
+        GameLog.AggressionLog($"[Aggression] Token granted to {requester.Name}");
         return true;
     }
 
@@ -132,7 +134,7 @@ public partial class AggressionManager : Node
     {
         if (_tokenHolder != holder) return;
 
-        GD.Print($"[Aggression] Token released by {holder.Name}");
+        GameLog.AggressionLog($"[Aggression] Token released by {holder.Name}");
         _tokenHolder = null;
         _cooldownTimer = ReassignDelay;
 
@@ -147,7 +149,7 @@ public partial class AggressionManager : Node
     {
         if (_tokenHolder != holder) return;
 
-        GD.Print($"[Aggression] Token FORCE-RELEASED (parry lockout {ParryLockout}s)");
+        GameLog.AggressionLog($"[Aggression] Token FORCE-RELEASED (parry lockout {ParryLockout}s)");
         _tokenHolder = null;
         _cooldownTimer = ParryLockout;
 

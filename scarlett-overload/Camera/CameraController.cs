@@ -1,5 +1,8 @@
-using Game.Autoloads;
+namespace Game.Camera;
+
+using Game.Debug;
 using Godot;
+using Game.Autoloads;
 
 /// <summary>
 /// Third-person camera with lock-on targeting.
@@ -112,7 +115,7 @@ public partial class CameraController : Node3D
         if (dist > LockOnRange) return;
 
         _lockTarget = enemy;
-        GD.Print($"[Camera] Auto-switched lock to attacker: {enemy.Name}");
+        GameLog.CameraLog($"[Camera] Auto-switched lock to attacker: {enemy.Name}");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -274,7 +277,7 @@ public partial class CameraController : Node3D
             _lockTarget = best;
             _isLockedOn = true;
             _lockIndicator.Visible = true;
-            GD.Print($"[Camera] Locked on to: {best.Name}");
+            GameLog.CameraLog($"[Camera] Locked on to: {best.Name}");
         }
     }
 
@@ -354,7 +357,7 @@ public partial class CameraController : Node3D
         if (best != null)
         {
             _lockTarget = best;
-            GD.Print($"[Camera] Switched lock to: {best.Name}");
+            GameLog.CameraLog($"[Camera] Switched lock to: {best.Name}");
         }
     }
 

@@ -1,5 +1,7 @@
 namespace Game.Autoloads;
 
+using Game.Debug;
+
 using Godot;
 
 /// <summary>
@@ -68,7 +70,7 @@ public partial class GameManager : Node
     {
         if (CurrentState == State.GameOver) return;
         CurrentState = State.GameOver;
-        GD.Print("[GameManager] Game Over");
+        GameLog.GameStateLog("[GameManager] Game Over");
     }
 
     /// <summary>

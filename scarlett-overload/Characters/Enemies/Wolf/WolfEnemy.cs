@@ -1,4 +1,6 @@
-using Game.Core.Data;
+namespace Game.Characters.Enemies.Wolf;
+
+using Game.Debug;
 using Godot;
 
 /// <summary>
@@ -378,7 +380,7 @@ public partial class WolfEnemy : EnemyBase
     {
         _inHitReaction = false;
         _lastAnimState = (EnemyAI.AIState)(-1); // Force re-evaluation
-        GD.Print($"[{Name}] Hit reaction finished");
+        GameLog.AILog($"[{Name}] Hit reaction finished");
     }
 
     // ══════════════════════════════════════════════════════════════════

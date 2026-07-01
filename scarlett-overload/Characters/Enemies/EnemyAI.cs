@@ -1,6 +1,9 @@
-using Game.Autoloads;
+namespace Game.Characters.Enemies;
+
+using Game.Debug;
 using Game.Core.Data;
 using Godot;
+using Game.Autoloads;
 
 /// <summary>
 /// Enemy AI state machine — composition pattern, plain C# class.
@@ -162,7 +165,7 @@ public class EnemyAI
 
         if (_isParryStunned)
         {
-            GD.Print($"[{_owner.Name} AI] Hit during parry stun — timer preserved ({_stateTimer:F1}s)");
+            GameLog.AILog($"[{_owner.Name} AI] Hit during parry stun — timer preserved ({_stateTimer:F1}s)");
             return;
         }
 
@@ -186,7 +189,7 @@ public class EnemyAI
         float duration = _config?.ParryStaggerDuration ?? 2.5f;
         ParryStunTotalDuration = duration;
         EnterState(AIState.Stunned, duration);
-        GD.Print($"[{_owner.Name} AI] PARRIED — parry stun for {duration}s");
+        GameLog.AILog($"[{_owner.Name} AI] PARRIED — parry stun for {duration}s");
     }
 
     public void OnDeath()
@@ -212,14 +215,14 @@ public class EnemyAI
         if (State != AIState.Stunned) return;
         _stateTimer += extraTime;
         ParryStunTotalDuration += extraTime;
-        GD.Print($"[{_owner.Name} AI] Stun extended by {extraTime:F1}s (remaining: {_stateTimer:F1}s)");
+        GameLog.AILog($"[{_owner.Name} AI] Stun extended by {extraTime:F1}s (remaining: {_stateTimer:F1}s)");
     }
 
     public void CollapseStun(float graceTime)
     {
         if (State != AIState.Stunned) return;
         if (_stateTimer <= graceTime) return;
-        GD.Print($"[{_owner.Name} AI] Stun collapsed: {_stateTimer:F1}s → {graceTime:F1}s");
+        GameLog.AILog($"[{_owner.Name} AI] Stun collapsed: {_stateTimer:F1}s → {graceTime:F1}s");
         _stateTimer = graceTime;
     }
 
@@ -233,7 +236,7 @@ public class EnemyAI
         {
             EnterState(AIState.Chasing);
             AggressionManager.Instance?.Register(_owner);
-            GD.Print($"[{_owner.Name} AI] Player detected — chasing");
+            GameLog.AILog($"[{_owner.Name} AI] Player detected — chasing");
         }
     }
 
@@ -287,7 +290,7 @@ public class EnemyAI
                 EnterState(AIState.Telegraphing, telegraphDur);
 
                 if (_currentAttack != null)
-                    GD.Print($"[{_owner.Name} AI] Telegraphing: {_currentAttack.AttackName}");
+                    GameLog.AILog($"[{_owner.Name} AI] Telegraphing: {_currentAttack.AttackName}");
                 else
                     GD.PushWarning($"[{_owner.Name} AI] Telegraphing with NULL attack!");
             }
@@ -319,7 +322,7 @@ public class EnemyAI
             }
 
             TelegraphProgress = 1f;
-            GD.Print($"[{_owner.Name} AI] Attacking!");
+            GameLog.AILog($"[{_owner.Name} AI] Attacking!");
         }
     }
 

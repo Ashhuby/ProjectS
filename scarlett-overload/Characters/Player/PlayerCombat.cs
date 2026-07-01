@@ -1,6 +1,11 @@
-using Game.Autoloads;
+namespace Game.Characters.Player;
+
+using Game.Debug;
 using Game.Core.Data;
 using Godot;
+using Game.Camera;
+using Game.Autoloads;
+using Game.Characters.Enemies;
 
 /// <summary>
 /// Manages the player's combat state machine, combo system,
@@ -187,14 +192,14 @@ public class PlayerCombat
     {
         _vitalThrustReady = true;
         StartSparkle();
-        GD.Print("[Combat] Vital thrust LOADED — sparkle active, press attack to fire");
+        GameLog.CombatLog("[Combat] Vital thrust LOADED — sparkle active, press attack to fire");
     }
 
     private void OnVitalThrustUnloaded()
     {
         _vitalThrustReady = false;
         StopSparkle();
-        GD.Print("[Combat] Vital thrust unloaded");
+        GameLog.CombatLog("[Combat] Vital thrust unloaded");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -267,7 +272,7 @@ public class PlayerCombat
         State = CombatState.Dashing;
         _dash.Start(direction);
         _playback.Travel("Idle");
-        GD.Print("[Combat] Dash started");
+        GameLog.CombatLog("[Combat] Dash started");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -293,7 +298,7 @@ public class PlayerCombat
         };
 
         _playback.Travel(animName);
-        GD.Print($"[Combat] Attack step {step + 1} ({_currentAttack?.AttackName ?? "fallback"})");
+        GameLog.CombatLog($"[Combat] Attack step {step + 1} ({_currentAttack?.AttackName ?? "fallback"})");
     }
 
     private void StartVitalThrust()
@@ -313,7 +318,7 @@ public class PlayerCombat
         // It will be turned off in OnAttackAnimationFinished or if
         // VitalThrustUnloaded fires
 
-        GD.Print("[Combat] VITAL THRUST fired!");
+        GameLog.CombatLog("[Combat] VITAL THRUST fired!");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -328,7 +333,7 @@ public class PlayerCombat
         _inComboWindow = false;
         _currentAttack = null;
         _playback.Travel("Parry");
-        GD.Print("[Combat] Parry started");
+        GameLog.CombatLog("[Combat] Parry started");
     }
 
     private void CancelAttackIntoParry()
@@ -348,7 +353,7 @@ public class PlayerCombat
         State = CombatState.Parrying;
         _isParryActive = false;
         _playback.Travel("Parry");
-        GD.Print("[Combat] Attack cancelled → Parry");
+        GameLog.CombatLog("[Combat] Attack cancelled → Parry");
     }
 
     private void EnterStunned()
@@ -368,7 +373,7 @@ public class PlayerCombat
 
         _hitbox.Deactivate();
         _playback.Travel("HitReaction");
-        GD.Print("[Combat] Stunned");
+        GameLog.CombatLog("[Combat] Stunned");
     }
 
     private void ReturnToFree()
@@ -393,7 +398,7 @@ public class PlayerCombat
         if (State == CombatState.Dashing && (_dash == null || !_dash.IsDashing))
         {
             ReturnToFree();
-            GD.Print("[Combat] Dash → Free");
+            GameLog.CombatLog("[Combat] Dash → Free");
         }
 
         if (!_inComboWindow) return;
@@ -424,7 +429,7 @@ public class PlayerCombat
                 return false;
             }
 
-            GD.Print($"[Combat] Parry FAILED — {data.Source?.Name}'s attack is not parriable");
+            GameLog.CombatLog($"[Combat] Parry FAILED — {data.Source?.Name}'s attack is not parriable");
         }
         return true;
     }
@@ -439,7 +444,7 @@ public class PlayerCombat
         Game.VFX.GameVFX.Instance?.SpawnScreenFlash(
             new Color(1f, 0.1f, 0.1f, 0.25f), 0.1f);
 
-        GD.Print($"[Combat] Took {data.Amount} damage");
+        GameLog.CombatLog($"[Combat] Took {data.Amount} damage");
 
         if (survived)
             EnterStunned();
@@ -465,7 +470,7 @@ public class PlayerCombat
 
         _hitbox.Deactivate();
         _playback.Travel("Death");
-        GD.Print("[Combat] Dead");
+        GameLog.CombatLog("[Combat] Dead");
 
         if (_camera != null && _camera.IsLockedOn)
             _camera.DisengageLock();
@@ -473,7 +478,7 @@ public class PlayerCombat
 
     private void OnParrySuccess(DamageData data)
     {
-        GD.Print($"[Combat] PARRY SUCCESS against {data.Source?.Name}");
+        GameLog.CombatLog($"[Combat] PARRY SUCCESS against {data.Source?.Name}");
 
         ApplyHitStop(FallbackHitStopDuration, FallbackHitStopTimeScale);
         _camera?.Shake(DealHitShakeIntensity, DealHitShakeDuration);
@@ -519,7 +524,7 @@ public class PlayerCombat
             _isVitalThrusting = false;
             StopSparkle();
             ReturnToFree();
-            GD.Print("[Combat] Vital thrust complete → Free");
+            GameLog.CombatLog("[Combat] Vital thrust complete → Free");
             return;
         }
 
@@ -531,7 +536,7 @@ public class PlayerCombat
         {
             _inComboWindow = true;
             _comboWindowTimer = _currentAttack?.ComboWindowDuration ?? FallbackComboWindow;
-            GD.Print("[Combat] Combo window open");
+            GameLog.CombatLog("[Combat] Combo window open");
         }
         else
         {
@@ -542,13 +547,13 @@ public class PlayerCombat
     public void OnParryWindowOpen()
     {
         _isParryActive = true;
-        GD.Print("[Combat] Parry window OPEN");
+        GameLog.CombatLog("[Combat] Parry window OPEN");
     }
 
     public void OnParryWindowClose()
     {
         _isParryActive = false;
-        GD.Print("[Combat] Parry window CLOSED");
+        GameLog.CombatLog("[Combat] Parry window CLOSED");
     }
 
     public void OnParryAnimationFinished() => ReturnToFree();

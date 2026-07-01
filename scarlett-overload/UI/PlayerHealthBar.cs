@@ -1,5 +1,7 @@
 namespace Game.UI;
 
+using Game.Debug;
+using Game.Characters.Player;
 using Godot;
 
 /// <summary>
@@ -54,7 +56,7 @@ public partial class PlayerHealthBar : Control
         _player = GetTree().GetFirstNodeInGroup("Player") as PlayerCharacter;
         if (_player == null)
         {
-            GD.PrintErr("PlayerHealthBar: No node found in 'Player' group. Add PlayerCharacter to the 'Player' group.");
+            GameLog.Error("PlayerHealthBar: No node found in 'Player' group. Add PlayerCharacter to the 'Player' group.");
             return;
         }
 

@@ -1,9 +1,13 @@
-using Game.Autoloads;
+namespace Game.Characters.Enemies;
+
+using Game.Debug;
 using Game.Characters;
 using Game.Core.Data;
 using Game.Core.Interfaces;
 using Game.UI;
 using Godot;
+using Game.Combat;
+using Game.Autoloads;
 
 /// <summary>
 /// Working enemy with AI. Extends CharacterBase for health/knockback,
@@ -174,7 +178,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         SetHurtboxActive(false);
         _healthBar?.OnOwnerDied();
 
-        GD.Print($"[{Name}] Killed.");
+        GameLog.AILog($"[{Name}] Killed.");
 
         var tween = CreateTween();
         tween.SetParallel(true);
@@ -213,7 +217,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         if (from == EnemyAI.AIState.Stunned && _rotationLocked)
         {
             _rotationLocked = false;
-            GD.Print($"[{Name}] Rotation unlocked — stun ended");
+            GameLog.AILog($"[{Name}] Rotation unlocked — stun ended");
         }
 
         // ── Vital system — stun expired ───────────────────────────
@@ -252,7 +256,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
 
         _currentHealth = Mathf.Max(_currentHealth - bonusDamage, 0);
         NotifyHealthChanged();
-        GD.Print($"[{Name}] Vital bonus damage: {bonusDamage}. HP: {_currentHealth}/{MaxHealth}");
+        GameLog.AILog($"[{Name}] Vital bonus damage: {bonusDamage}. HP: {_currentHealth}/{MaxHealth}");
 
         if (_currentHealth <= 0)
         {
@@ -297,7 +301,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
             _rotationLocked = true;
             IsCurrentAttackParriable = false;
             FlashColor(new Color(0.5f, 0.5f, 1f), 0.3f);
-            GD.Print($"[{Name}] Parry staggered — rotation locked");
+            GameLog.AILog($"[{Name}] Parry staggered — rotation locked");
 
             // Activate vital system — find player position for direction selection
             if (_vitalSystem != null)
@@ -478,7 +482,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         _vitalIndicator.Visible = true;
 
         string label = isPrimary ? "PRIMARY" : "MINI";
-        GD.Print($"[{Name}] Vital indicator shown: {label}");
+        GameLog.AILog($"[{Name}] Vital indicator shown: {label}");
     }
 
     private void HideVitalIndicator()
@@ -596,7 +600,7 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
         SetHurtboxActive(true);
         _hitbox.Deactivate();
         _healthBar?.OnOwnerRespawned();
-        GD.Print($"[{Name}] Respawned.");
+        GameLog.AILog($"[{Name}] Respawned.");
     }
 
     private void FlashColor(Color flashColor, float duration)

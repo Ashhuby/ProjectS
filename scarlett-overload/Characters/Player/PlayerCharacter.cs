@@ -1,8 +1,12 @@
-using Game.Autoloads;
+namespace Game.Characters.Player;
+
+using Game.Debug;
 using Game.Characters;
 using Game.Core.Data;
 using Godot;
 using System;
+using Game.Autoloads;
+using Game.Camera;
 
 public enum CombatState
 {
@@ -88,9 +92,9 @@ public partial class PlayerCharacter : CharacterBase
         hitbox.HitConnected += _combat.OnHitConnected;
 
         if (Weapon != null)
-            GD.Print($"[Player] Weapon: {Weapon.WeaponName} ({Weapon.MaxComboSteps} combo steps)");
+            GameLog.CombatLog($"[Player] Weapon: {Weapon.WeaponName} ({Weapon.MaxComboSteps} combo steps)");
         else
-            GD.Print("[Player] No weapon — using fallback values");
+            GameLog.CombatLog("[Player] No weapon — using fallback values");
     }
 
     public override void _ExitTree()

@@ -1,7 +1,10 @@
-using Game.Autoloads;
+namespace Game.Characters.Player;
+
+using Game.Debug;
 using Game.Core.Data;
 using Godot;
 using System;
+using Game.Autoloads;
 
 /// <summary>
 /// Handles player dash: velocity burst, i-frame window, and cooldown.
@@ -65,7 +68,7 @@ public class PlayerDash
         _dashVelocity = direction * speed;
 
         EventBus.Instance?.EmitDashStarted();
-        GD.Print($"[Dash] Started — dir: ({direction.X:F2}, {direction.Z:F2}), speed: {speed:F1}");
+        GameLog.MovementLog($"[Dash] Started — dir: ({direction.X:F2}, {direction.Z:F2}), speed: {speed:F1}");
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -127,7 +130,7 @@ public class PlayerDash
         }
 
         EventBus.Instance?.EmitDashEnded();
-        GD.Print("[Dash] Complete");
+        GameLog.MovementLog("[Dash] Complete");
     }
 
     /// <summary>
@@ -147,7 +150,7 @@ public class PlayerDash
             _hurtboxDisabled = false;
         }
 
-        GD.Print("[Dash] Force cancelled");
+        GameLog.MovementLog("[Dash] Force cancelled");
     }
 
     // ══════════════════════════════════════════════════════════════════
