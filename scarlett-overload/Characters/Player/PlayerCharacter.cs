@@ -30,7 +30,13 @@ public partial class PlayerCharacter : CharacterBase
 {
     [ExportGroup("Weapon")]
     [Export] public WeaponData Weapon { get; set; }
-    [Export] public Vector3 SwordTipOffset { get; set; } = new(0f, 0f, -0.8f);
+
+    /// <summary>
+    /// Local-space offset from the Sword node origin to the rapier tip.
+    /// Used to position the vital thrust sparkle emitter.
+    /// Tune in the inspector until the sparkle sits at the blade tip.
+    /// </summary>
+    [Export] public Vector3 RapierTipOffset { get; set; } = new(0f, 1.2f, 0f);
 
     [ExportGroup("Dash")]
     [Export] public DashStats DashConfig { get; set; }
@@ -47,7 +53,6 @@ public partial class PlayerCharacter : CharacterBase
 
     protected override void Initialize()
     {
-        // Fallback stats when no .tres assigned in the inspector
         Stats ??= new CharacterStats
         {
             MaxHealth = 100,
@@ -76,21 +81,8 @@ public partial class PlayerCharacter : CharacterBase
         _dash = new PlayerDash(DashConfig ?? new DashStats(), SetHurtboxActive);
 
         _combat = new PlayerCombat(this, playback, hitbox, camera, Weapon, _dash);
-        _combat.CreateParryIndicator();
         _combat.SubscribeEvents();
-
-        // ── Sword trail ───────────────────────────────────────────────
-        var trail = new SwordTrail();
-        if (Weapon != null)
-        {
-            trail.TipColor = Weapon.TrailTipColor;
-            trail.BaseColor = Weapon.TrailBaseColor;
-            trail.MaxPoints = Weapon.TrailMaxPoints;
-            trail.Jitter = Weapon.TrailJitter;
-        }
-        trail.Initialize(swordNode, SwordTipOffset);
-        AddChild(trail);
-        _combat.SetTrail(trail);
+        _combat.SetupVitalSparkle(swordNode, RapierTipOffset);
 
         // ── Wire events ───────────────────────────────────────────────
         hitbox.HitConnected += _combat.OnHitConnected;
@@ -131,11 +123,6 @@ public partial class PlayerCharacter : CharacterBase
     //  CHARACTERBASE OVERRIDES
     // ══════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Drive horizontal velocity. Dashing uses dash velocity directly.
-    /// Free state uses input movement. All other combat states return
-    /// zero horizontal velocity (CharacterBase handles knockback separately).
-    /// </summary>
     protected override Vector3 ProcessMovement(Vector3 velocity, float dt)
     {
         if (_combat.State == CombatState.Dashing && _dash != null)
@@ -155,10 +142,6 @@ public partial class PlayerCharacter : CharacterBase
         return _movement.ComputeVelocity(velocity, dt);
     }
 
-    /// <summary>
-    /// Called every physics frame after MoveAndSlide.
-    /// Ticks the combat FSM (which includes dash) and updates rotation/animation.
-    /// </summary>
     protected override void ProcessUpdate(float dt)
     {
         _combat.Tick(dt);
@@ -171,29 +154,16 @@ public partial class PlayerCharacter : CharacterBase
             _movement.UpdateLocomotionAnimation();
     }
 
-    /// <summary>
-    /// Parry check. If the parry window is active, PlayerCombat blocks
-    /// the damage and fires parry effects.
-    /// </summary>
     protected override bool ShouldTakeDamage(DamageData data)
     {
         return _combat.ShouldTakeDamage(data);
     }
 
-    /// <summary>
-    /// Called after damage is applied (health reduced, knockback set).
-    /// Delegates to combat for hit reaction + game feel.
-    /// </summary>
     protected override void OnDamageTaken(DamageData data)
     {
         _combat.OnDamageTaken(data, survived: CurrentHealth > 0);
     }
 
-    /// <summary>
-    /// Called when health reaches zero. Combat component handles the
-    /// death state; GameManager gets notified for game-over flow.
-    /// EventBus.EntityDied is fired by CharacterBase automatically.
-    /// </summary>
     protected override void OnDeath()
     {
         _combat.OnDeath();
@@ -202,8 +172,6 @@ public partial class PlayerCharacter : CharacterBase
 
     // ══════════════════════════════════════════════════════════════════
     //  ANIMATION CALLBACKS
-    //  Method call tracks on combat animations target this node.
-    //  Each is a one-line delegate to the combat component.
     // ══════════════════════════════════════════════════════════════════
 
     public void OnAttackHitboxActivate() => _combat.OnAttackHitboxActivate();

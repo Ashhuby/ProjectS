@@ -14,17 +14,14 @@ using Godot;
 ///   OnBiteHitboxActivate()  — jaw connects, hitbox on, parry window open
 ///   OnBiteHitboxDeactivate()— bite ends, hitbox off, parry window closed
 ///
-/// WolfConfig.tres:
-///   LungeSpeed = 0          — AI lunge disabled (animation owns it)
-///   HitboxDelay = 999       — AI hitbox disabled (animation owns it)
-///   AttackActiveDuration    — match Bite animation length (1.8)
-///   RecoveryDuration = 0.1  — animation has its own recovery frames
+/// Method call tracks on HitReaction animation (target: root node ".."):
+///   OnHitReactionFinished() — return AI to previous state
 ///
-/// Scene:
-///   - WolfModel (.glb with Idle/Run/Bite)
-///   - AnimationTree (Idle, Run, Bite states, Active = true)
-///   - AnimationTree.anim_player → WolfModel/AnimationPlayer
-///   - AnimationTree.root_node  → "../WolfModel"
+/// Death animation plays to completion, then base class respawn runs.
+///
+/// Indicators use GpuParticles3D instead of primitive meshes:
+///   Warning: orbiting orange embers that accelerate
+///   Parry:   bright blue-white flash ring
 /// </summary>
 public partial class WolfEnemy : EnemyBase
 {
@@ -59,18 +56,22 @@ public partial class WolfEnemy : EnemyBase
 
     private bool _wasDead;
 
-    // ── Attack indicator (two-phase) ──────────────────────────────────
+    // ── Attack indicators (particle-based) ────────────────────────────
 
     private enum IndicatorPhase { Off, Warning, Parry }
 
-    private MeshInstance3D _warningMeshInst;
-    private StandardMaterial3D _warningMeshMat;
+    private GpuParticles3D _warningParticles;
+    private OmniLight3D _warningLight;
 
-    private MeshInstance3D _parryMeshInst;
-    private StandardMaterial3D _parryMeshMat;
+    private GpuParticles3D _parryParticles;
+    private OmniLight3D _parryLight;
 
     private IndicatorPhase _indicatorPhase = IndicatorPhase.Off;
     private float _indicatorTimer;
+
+    // ── Hit reaction tracking ─────────────────────────────────────────
+
+    private bool _inHitReaction;
 
     // ══════════════════════════════════════════════════════════════════
     //  VISUALS
@@ -111,56 +112,93 @@ public partial class WolfEnemy : EnemyBase
     }
 
     /// <summary>
-    /// Two separate meshes — one for warning, one for parry.
-    /// Different shape, color, size, and behavior so the player
-    /// can instantly tell them apart at a glance.
+    /// Particle-based indicators.
     ///
-    /// Warning: small orange prism, pulses and bobs with increasing speed.
-    /// Parry:   large red diamond, bright steady glow, snaps into existence.
+    /// Warning: orbiting orange embers around the wolf's head.
+    ///   Starts slow, accelerates as the bite approaches.
+    ///
+    /// Parry: bright blue-white sparks in a ring that snaps on
+    ///   when the hitbox activates. Blue is categorically different
+    ///   from every other orange effect — unmistakable "PARRY NOW".
     /// </summary>
     private void CreateAttackIndicators()
     {
-        // ── Warning indicator (orange prism) ──────────────────────
-        _warningMeshInst = new MeshInstance3D
-        {
-            Mesh = new PrismMesh { Size = new Vector3(0.25f, 0.25f, 0.1f) }
-        };
-        _warningMeshMat = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(1f, 0.6f, 0f),
-            EmissionEnabled = true,
-            Emission = new Color(1f, 0.6f, 0f),
-            EmissionEnergyMultiplier = 3f,
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled,
-            NoDepthTest = true,
-            RenderPriority = 5
-        };
-        _warningMeshInst.MaterialOverride = _warningMeshMat;
-        _warningMeshInst.Position = new Vector3(0f, 1.8f, 0f);
-        _warningMeshInst.Visible = false;
-        AddChild(_warningMeshInst);
+        // ── Warning: orbiting embers ──────────────────────────────
+        _warningParticles = new GpuParticles3D();
+        _warningParticles.Amount = 6;
+        _warningParticles.Lifetime = 0.5f;
+        _warningParticles.Explosiveness = 0f;
+        _warningParticles.Emitting = false;
+        _warningParticles.Position = new Vector3(0f, 1.2f, 0f);
 
-        // ── Parry indicator (red diamond) ─────────────────────────
-        _parryMeshInst = new MeshInstance3D();
-        var box = new BoxMesh { Size = new Vector3(0.35f, 0.35f, 0.06f) };
-        _parryMeshInst.Mesh = box;
-        _parryMeshInst.RotationDegrees = new Vector3(0f, 0f, 45f);
-        _parryMeshMat = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(0f, 0.4f, 1f),
-            EmissionEnabled = true,
-            Emission = new Color(0f, 0.4f, 1f),
-            EmissionEnergyMultiplier = 8f,
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled,
-            NoDepthTest = true,
-            RenderPriority = 6
-        };
-        _parryMeshInst.MaterialOverride = _parryMeshMat;
-        _parryMeshInst.Position = new Vector3(0f, 1.8f, 0f);
-        _parryMeshInst.Visible = false;
-        AddChild(_parryMeshInst);
+        var warnMat = new ParticleProcessMaterial();
+        warnMat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+        warnMat.EmissionSphereRadius = 0.4f;
+        warnMat.Direction = Vector3.Up;
+        warnMat.Spread = 60f;
+        warnMat.InitialVelocityMin = 0.5f;
+        warnMat.InitialVelocityMax = 1.5f;
+        warnMat.Gravity = new Vector3(0f, 1f, 0f);
+        warnMat.AngularVelocityMin = -200f;
+        warnMat.AngularVelocityMax = 200f;
+        warnMat.ScaleMin = 1.0f;
+        warnMat.ScaleMax = 2.5f;
+        warnMat.ColorRamp = MakeRamp(
+            new Color(1f, 0.7f, 0.2f, 0.9f),
+            new Color(1f, 0.3f, 0f, 0f)
+        );
+        _warningParticles.ProcessMaterial = warnMat;
+        _warningParticles.DrawPass1 = MakeParticleQuad(0.06f,
+            "res://Assets/VFX/Textures/SoftGlow.png",
+            new Color(1f, 0.6f, 0.1f), 5f);
+
+        AddChild(_warningParticles);
+
+        _warningLight = new OmniLight3D();
+        _warningLight.LightColor = new Color(1f, 0.6f, 0.2f);
+        _warningLight.LightEnergy = 0f;
+        _warningLight.OmniRange = 3f;
+        _warningLight.Position = new Vector3(0f, 1.2f, 0f);
+        AddChild(_warningLight);
+
+        // ── Parry: blue-white flash ring ──────────────────────────
+        _parryParticles = new GpuParticles3D();
+        _parryParticles.Amount = 10;
+        _parryParticles.Lifetime = 0.25f;
+        _parryParticles.Explosiveness = 0.9f;
+        _parryParticles.Emitting = false;
+        _parryParticles.Position = new Vector3(0f, 1.2f, 0f);
+
+        var parryMat = new ParticleProcessMaterial();
+        parryMat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Ring;
+        parryMat.EmissionRingRadius = 0.6f;
+        parryMat.EmissionRingInnerRadius = 0.4f;
+        parryMat.EmissionRingHeight = 0.05f;
+        parryMat.EmissionRingAxis = Vector3.Up;
+        parryMat.Direction = Vector3.Up;
+        parryMat.Spread = 30f;
+        parryMat.InitialVelocityMin = 0.5f;
+        parryMat.InitialVelocityMax = 2f;
+        parryMat.Gravity = Vector3.Zero;
+        parryMat.ScaleMin = 1.5f;
+        parryMat.ScaleMax = 3.0f;
+        parryMat.ColorRamp = MakeRamp(
+            new Color(0.6f, 0.8f, 1f, 1f),
+            new Color(0.2f, 0.5f, 1f, 0f)
+        );
+        _parryParticles.ProcessMaterial = parryMat;
+        _parryParticles.DrawPass1 = MakeParticleQuad(0.05f,
+            "res://Assets/VFX/Textures/Spark.png",
+            new Color(0.5f, 0.7f, 1f), 10f);
+
+        AddChild(_parryParticles);
+
+        _parryLight = new OmniLight3D();
+        _parryLight.LightColor = new Color(0.5f, 0.7f, 1f);
+        _parryLight.LightEnergy = 0f;
+        _parryLight.OmniRange = 4f;
+        _parryLight.Position = new Vector3(0f, 1.2f, 0f);
+        AddChild(_parryLight);
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -169,37 +207,38 @@ public partial class WolfEnemy : EnemyBase
 
     protected override void ProcessUpdate(float dt)
     {
-        // ── Respawn ───────────────────────────────────────────────
+        // ── Respawn reset ─────────────────────────────────────────
         if (_wasDead && !IsDead)
         {
             _modelRoot.Scale = _modelBaseScale;
             _material.AlbedoColor = _originalColor;
             _isLunging = false;
+            _inHitReaction = false;
             _indicatorPhase = IndicatorPhase.Off;
             _lastAnimState = (EnemyAI.AIState)(-1);
             _wasDead = false;
+
+            if (_playback != null)
+                _playback.Travel("Idle");
         }
         _wasDead = IsDead;
 
         // ── Base: AI tick, rotation, UpdateVisuals ─────────────────
         base.ProcessUpdate(dt);
 
-        // ── Suppress base visual damage ───────────────────────────
+        // ── Suppress base visuals ─────────────────────────────────
         if (!IsDead)
         {
             _mesh.Scale = _baseScale;
             if (!_isFlashing)
                 _material.AlbedoColor = _originalColor;
 
-            // Kill base warning indicator every frame
             if (_baseWarningIndicator == null)
                 _baseWarningIndicator = FindBaseWarningIndicator();
+
             if (_baseWarningIndicator != null)
                 _baseWarningIndicator.Visible = false;
 
-            // Suppress base auto-parriable (HandleAIStateChange sets
-            // it on Attacking entry — we only want animation tracks
-            // to control parriable timing)
             if (AI.State == EnemyAI.AIState.Attacking
                 && _indicatorPhase != IndicatorPhase.Parry)
             {
@@ -213,14 +252,25 @@ public partial class WolfEnemy : EnemyBase
         UpdateIndicator(dt);
 
         // ── Drive animation from AI state ─────────────────────────
+        UpdateAnimationState();
+        UpdateRunTimeScale();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ANIMATION STATE DRIVER
+    // ══════════════════════════════════════════════════════════════════
+
+    private void UpdateAnimationState()
+    {
+        // Don't interrupt hit reaction
+        if (_inHitReaction) return;
+
         var aiState = AI.State;
         if (aiState != _lastAnimState)
         {
             _playback.Travel(MapAIStateToAnim(aiState));
             _lastAnimState = aiState;
         }
-
-        UpdateRunTimeScale();
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -248,11 +298,19 @@ public partial class WolfEnemy : EnemyBase
     {
         base.OnDamageTaken(data);
 
+        // White flash
         _isFlashing = true;
         _material.AlbedoColor = Colors.White;
         var tween = CreateTween();
         tween.TweenProperty(_material, "albedo_color", _originalColor, 0.15f);
         tween.TweenCallback(Callable.From(() => _isFlashing = false));
+
+        // Play hit reaction if not attacking or dead
+        if (AI.State != EnemyAI.AIState.Attacking && !IsDead && _playback != null)
+        {
+            _inHitReaction = true;
+            _playback.Travel("HitReaction");
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -262,17 +320,19 @@ public partial class WolfEnemy : EnemyBase
     protected override void OnDeath()
     {
         _isLunging = false;
+        _inHitReaction = false;
         SetIndicatorPhase(IndicatorPhase.Off);
+
+        // Let base handle AI death, hitbox, hurtbox, vital reset, health bar
         base.OnDeath();
 
-        var tween = CreateTween();
-        tween.TweenProperty(_modelRoot, "scale", Vector3.Zero, 0.4f)
-            .SetEase(Tween.EaseType.In)
-            .SetTrans(Tween.TransitionType.Back);
+        // Play death animation instead of base class scale-to-zero tween
+        if (_playback != null)
+            _playback.Travel("Death");
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  ANIMATION CALLBACKS (method call tracks on Bite)
+    //  ANIMATION CALLBACKS (method call tracks)
     // ══════════════════════════════════════════════════════════════════
 
     public void OnLungeStart()
@@ -311,8 +371,18 @@ public partial class WolfEnemy : EnemyBase
         SetIndicatorPhase(IndicatorPhase.Off);
     }
 
+    /// <summary>
+    /// Called by method call track on HitReaction animation's last frame.
+    /// </summary>
+    public void OnHitReactionFinished()
+    {
+        _inHitReaction = false;
+        _lastAnimState = (EnemyAI.AIState)(-1); // Force re-evaluation
+        GD.Print($"[{Name}] Hit reaction finished");
+    }
+
     // ══════════════════════════════════════════════════════════════════
-    //  INDICATOR — two-phase visual telegraph
+    //  INDICATOR — particle-based two-phase telegraph
     // ══════════════════════════════════════════════════════════════════
 
     private void SetIndicatorPhase(IndicatorPhase phase)
@@ -320,14 +390,11 @@ public partial class WolfEnemy : EnemyBase
         _indicatorPhase = phase;
         _indicatorTimer = 0f;
 
-        _warningMeshInst.Visible = phase == IndicatorPhase.Warning;
-        _parryMeshInst.Visible = phase == IndicatorPhase.Parry;
+        _warningParticles.Emitting = phase == IndicatorPhase.Warning;
+        _warningLight.LightEnergy = phase == IndicatorPhase.Warning ? 2f : 0f;
 
-        // Reset transforms
-        _warningMeshInst.Scale = Vector3.One;
-        _warningMeshInst.Position = new Vector3(0f, 1.8f, 0f);
-        _parryMeshInst.Scale = Vector3.One * 1.3f;
-        _parryMeshInst.Position = new Vector3(0f, 1.8f, 0f);
+        _parryParticles.Emitting = phase == IndicatorPhase.Parry;
+        _parryLight.LightEnergy = phase == IndicatorPhase.Parry ? 6f : 0f;
     }
 
     private void UpdateIndicator(float dt)
@@ -338,33 +405,25 @@ public partial class WolfEnemy : EnemyBase
 
         if (_indicatorPhase == IndicatorPhase.Warning)
         {
-            // Orange prism — pulses faster as the bite approaches.
-            // Acceleration creates urgency: slow blink → frantic flash.
-            float speed = Mathf.Lerp(6f, 30f, Mathf.Min(_indicatorTimer * 2f, 1f));
-            float pulse = (Mathf.Sin(_indicatorTimer * speed) + 1f) * 0.5f;
+            // Embers accelerate as the bite approaches
+            float urgency = Mathf.Min(_indicatorTimer * 2f, 1f);
 
-            // Bob up/down
-            float bob = Mathf.Sin(_indicatorTimer * speed * 0.5f) * 0.08f;
-            _warningMeshInst.Position = new Vector3(0f, 1.8f + bob, 0f);
+            var mat = _warningParticles.ProcessMaterial as ParticleProcessMaterial;
+            if (mat != null)
+            {
+                mat.InitialVelocityMin = Mathf.Lerp(0.5f, 3f, urgency);
+                mat.InitialVelocityMax = Mathf.Lerp(1.5f, 5f, urgency);
+                mat.ScaleMin = Mathf.Lerp(1f, 2f, urgency);
+                mat.ScaleMax = Mathf.Lerp(2.5f, 4f, urgency);
+            }
 
-            // Orange → deep orange as pulse peaks
-            var col = new Color(1f, Mathf.Lerp(0.6f, 0.15f, pulse), 0f);
-            _warningMeshMat.AlbedoColor = col;
-            _warningMeshMat.Emission = col;
-            _warningMeshMat.EmissionEnergyMultiplier = Mathf.Lerp(2f, 5f, pulse);
-
-            // Scale pulse
-            _warningMeshInst.Scale = Vector3.One * Mathf.Lerp(0.8f, 1.15f, pulse);
+            float pulse = (Mathf.Sin(_indicatorTimer * Mathf.Lerp(6f, 25f, urgency)) + 1f) * 0.5f;
+            _warningLight.LightEnergy = Mathf.Lerp(1f, 5f, urgency) * Mathf.Lerp(0.7f, 1f, pulse);
         }
         else if (_indicatorPhase == IndicatorPhase.Parry)
         {
-            // Red diamond — large, bright, steady with a slight throb.
-            // Visually distinct from warning: different shape, color,
-            // size, and behavior. Unmistakable "PARRY NOW" signal.
             float throb = (Mathf.Sin(_indicatorTimer * 20f) + 1f) * 0.5f;
-
-            _parryMeshMat.EmissionEnergyMultiplier = Mathf.Lerp(6f, 12f, throb);
-            _parryMeshInst.Scale = Vector3.One * Mathf.Lerp(1.3f, 1.5f, throb);
+            _parryLight.LightEnergy = Mathf.Lerp(4f, 8f, throb);
         }
     }
 
@@ -431,13 +490,42 @@ public partial class WolfEnemy : EnemyBase
         {
             if (child is MeshInstance3D mi
                 && mi.Mesh is SphereMesh
-                && mi.Position.Y > 2.0f
-                && mi != _warningMeshInst
-                && mi != _parryMeshInst)
+                && mi.Position.Y > 2.0f)
             {
                 return mi;
             }
         }
         return null;
+    }
+
+    private static GradientTexture1D MakeRamp(Color start, Color end)
+    {
+        var gradient = new Gradient();
+        gradient.Colors = new[] { start, end };
+        gradient.Offsets = new[] { 0f, 1f };
+        var tex = new GradientTexture1D();
+        tex.Gradient = gradient;
+        return tex;
+    }
+
+    private static QuadMesh MakeParticleQuad(float size, string texturePath,
+        Color emission, float emissionStrength)
+    {
+        var quad = new QuadMesh();
+        quad.Size = new Vector2(size, size);
+
+        var mat = new StandardMaterial3D();
+        mat.AlbedoColor = Colors.White;
+        mat.AlbedoTexture = GD.Load<Texture2D>(texturePath);
+        mat.VertexColorUseAsAlbedo = true;
+        mat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
+        mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+        mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+        mat.EmissionEnabled = true;
+        mat.Emission = emission;
+        mat.EmissionEnergyMultiplier = emissionStrength;
+        quad.Material = mat;
+
+        return quad;
     }
 }

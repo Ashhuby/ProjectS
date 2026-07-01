@@ -487,19 +487,9 @@ public partial class EnemyBase : CharacterBase, ILockOnTarget
     }
 
     private void SpawnVitalPopBurst()
-    {
-        if (!_vitalIndicator.Visible) return;
-
-        // Quick scale-up flash then hide — placeholder for particle burst
-        Vector3 burstPos = _vitalIndicator.GlobalPosition;
-        var burstTween = CreateTween();
-        burstTween.TweenProperty(_vitalIndicator, "scale",
-            Vector3.One * 0.8f, 0.1f)
-            .SetEase(Tween.EaseType.Out)
-            .SetTrans(Tween.TransitionType.Expo);
-
-        GD.Print($"[{Name}] Vital pop burst at {burstPos}");
-    }
+   {
+       HideVitalIndicator();
+   }
 
     private void CreateVitalIndicator()
     {

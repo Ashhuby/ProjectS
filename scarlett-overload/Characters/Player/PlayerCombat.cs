@@ -4,7 +4,7 @@ using Godot;
 
 /// <summary>
 /// Manages the player's combat state machine, combo system,
-/// parry logic, and game feel effects (hit stop, camera shake, VFX).
+/// parry logic, and game feel effects (hit stop, camera shake).
 ///
 /// Plain C# class — not a Node. PlayerCharacter creates it and calls:
 ///   - HandleAttackInput / HandleParryInput / HandleDashInput (from _UnhandledInput)
@@ -13,10 +13,14 @@ using Godot;
 ///   - OnDamageTaken / OnDeath (from CharacterBase callbacks)
 ///   - Animation callbacks (routed from PlayerCharacter)
 ///
-/// Attack-cancel-into-parry: pressing parry during any attack animation
-/// immediately cancels the attack, deactivates the hitbox, and enters
-/// the parry state. This makes parry the universal defensive option —
-/// you can always reach it. Sekiro does the same thing.
+/// VFX are NOT called directly here. GameVFX autoload subscribes to
+/// EventBus and spawns effects autonomously. This class fires events
+/// (HitLanded, ParrySucceeded, etc.) and GameVFX reacts.
+///
+/// The one exception is the vital thrust sparkle — a persistent
+/// GpuParticles3D attached to the rapier tip that emits during the
+/// vital thrust animation. This is weapon-specific and lives on the
+/// sword node, not in the global VFX manager.
 /// </summary>
 public class PlayerCombat
 {
@@ -27,8 +31,10 @@ public class PlayerCombat
     private readonly WeaponData _weapon;
     private readonly PlayerDash _dash;
 
-    private SwordTrail _trail;
-    private MeshInstance3D _parryIndicator;
+    // ── Vital thrust sparkle ──────────────────────────────────────────
+
+    private GpuParticles3D _vitalSparkle;
+    private OmniLight3D _vitalSparkleLight;
 
     // ── State ─────────────────────────────────────────────────────────
 
@@ -81,31 +87,79 @@ public class PlayerCombat
     }
 
     /// <summary>
-    /// Wire up the sword trail after it's created by the coordinator.
+    /// Create the anime star sparkle emitter at the rapier tip.
+    /// Called once during initialization by PlayerCharacter.
+    ///
+    /// The emitter is a child of the sword node so it follows the
+    /// blade through all animations. It starts disabled and is
+    /// toggled on only during vital thrust.
+    ///
+    /// Effect: 4-point star bursts that shimmer white-gold with
+    /// a subtle blue-white core. PS1 aesthetic = small, hard-edged,
+    /// high-emission, no soft blur.
     /// </summary>
-    public void SetTrail(SwordTrail trail) => _trail = trail;
-
-    /// <summary>
-    /// Create the debug parry indicator (green sphere above head).
-    /// Called once during initialization.
-    /// </summary>
-    public void CreateParryIndicator()
+    public void SetupVitalSparkle(Node3D swordNode, Vector3 tipOffset)
     {
-        _parryIndicator = new MeshInstance3D();
-        var sphere = new SphereMesh { Radius = 0.15f, Height = 0.3f };
-        _parryIndicator.Mesh = sphere;
+        if (swordNode == null) return;
 
-        var mat = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(0f, 1f, 0.5f),
-            EmissionEnabled = true,
-            Emission = new Color(0f, 1f, 0.5f),
-            EmissionEnergyMultiplier = 2f
-        };
-        _parryIndicator.MaterialOverride = mat;
-        _parryIndicator.Position = new Vector3(0f, 2.2f, 0f);
-        _parryIndicator.Visible = false;
-        _owner.AddChild(_parryIndicator);
+        _vitalSparkle = new GpuParticles3D();
+        _vitalSparkle.Amount = 6;
+        _vitalSparkle.Lifetime = 0.3f;
+        _vitalSparkle.Explosiveness = 0.2f;
+        _vitalSparkle.Emitting = false;
+        _vitalSparkle.Position = tipOffset;
+
+        var mat = new ParticleProcessMaterial();
+
+        // Tight cluster around the tip — not a spray, a shimmer
+        mat.Direction = Vector3.Zero;
+        mat.Spread = 180f;
+        mat.InitialVelocityMin = 0.3f;
+        mat.InitialVelocityMax = 1.0f;
+        mat.Gravity = Vector3.Zero; // Stars float, they don't fall
+
+        // Scale flicker — stars pop in large then shrink to nothing
+        mat.ScaleMin = 1.5f;
+        mat.ScaleMax = 3.5f;
+        mat.ScaleCurve = MakeScaleCurve();
+
+        // Spin so the star shape rotates — anime sparkle hallmark
+        mat.AngularVelocityMin = -400f;
+        mat.AngularVelocityMax = 400f;
+
+        // Color: white-gold core → transparent
+        // The stars should feel luminous and precious
+        mat.ColorRamp = MakeSparkleRamp();
+
+        _vitalSparkle.ProcessMaterial = mat;
+
+        // Draw pass: small quad with the CrossBurst texture (4-point star)
+        // CrossBurst.png is already a hand-drawn 4-point star shape
+        var quad = new QuadMesh();
+        quad.Size = new Vector2(0.08f, 0.08f);
+
+        var quadMat = new StandardMaterial3D();
+        quadMat.AlbedoColor = Colors.White;
+        quadMat.AlbedoTexture = GD.Load<Texture2D>("res://Assets/VFX/Textures/CrossBurst.png");
+        quadMat.VertexColorUseAsAlbedo = true;
+        quadMat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
+        quadMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+        quadMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+        quadMat.EmissionEnabled = true;
+        quadMat.Emission = new Color(1f, 0.95f, 0.8f);
+        quadMat.EmissionEnergyMultiplier = 10f;
+        quad.Material = quadMat;
+
+        _vitalSparkle.DrawPass1 = quad;
+        swordNode.AddChild(_vitalSparkle);
+
+        // Small point light at the tip — makes the sparkle cast glow
+        _vitalSparkleLight = new OmniLight3D();
+        _vitalSparkleLight.LightColor = new Color(1f, 0.9f, 0.7f);
+        _vitalSparkleLight.LightEnergy = 0f; // Off by default
+        _vitalSparkleLight.OmniRange = 2f;
+        _vitalSparkleLight.Position = tipOffset;
+        swordNode.AddChild(_vitalSparkleLight);
     }
 
     /// <summary>
@@ -132,81 +186,92 @@ public class PlayerCombat
     private void OnVitalThrustLoaded()
     {
         _vitalThrustReady = true;
-        GD.Print("[Combat] Vital Thrust LOADED — next attack fires thrust");
+        StartSparkle();
+        GD.Print("[Combat] Vital thrust LOADED — sparkle active, press attack to fire");
     }
 
     private void OnVitalThrustUnloaded()
     {
         _vitalThrustReady = false;
-        GD.Print("[Combat] Vital Thrust UNLOADED");
+        StopSparkle();
+        GD.Print("[Combat] Vital thrust unloaded");
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  INPUT
+    //  INPUT HANDLERS
     // ══════════════════════════════════════════════════════════════════
 
     public void HandleAttackInput()
     {
+        if (State == CombatState.Dead) return;
+
+        // Vital thrust overrides normal attacks when loaded
+        if (_vitalThrustReady && State == CombatState.Free)
+        {
+            StartVitalThrust();
+            return;
+        }
+
         switch (State)
         {
             case CombatState.Free:
-                if (_vitalThrustReady)
-                    StartVitalThrust();
-                else
-                    StartAttack(0);
+                StartAttack(0);
                 break;
 
             case CombatState.Attacking:
-                if (_inComboWindow && _comboStep < MaxComboSteps - 1)
-                {
-                    _inComboWindow = false;
-                    StartAttack(_comboStep + 1);
-                }
-                else if (_comboStep < MaxComboSteps - 1)
-                {
-                    _attackBuffered = true;
-                }
+                _attackBuffered = true;
                 break;
+        }
+
+        // Also buffer during combo window
+        if (_inComboWindow)
+        {
+            _inComboWindow = false;
+            if (_comboStep < MaxComboSteps - 1)
+                StartAttack(_comboStep + 1);
         }
     }
 
     public void HandleParryInput()
     {
-        // Parry from Free — normal case
-        if (State == CombatState.Free)
-        {
-            EnterParry();
-            return;
-        }
+        if (State == CombatState.Dead) return;
 
-        // Attack-cancel-into-parry — cancel any attack mid-swing
-        if (State == CombatState.Attacking)
+        switch (State)
         {
-            CancelAttackIntoParry();
-            return;
+            case CombatState.Free:
+                EnterParry();
+                break;
+
+            case CombatState.Attacking:
+                CancelAttackIntoParry();
+                break;
         }
     }
 
-    /// <summary>
-    /// Attempt to dash. Allowed from Free or the end of a Parry animation.
-    /// Direction is a normalized XZ world-space vector computed by the caller.
-    /// </summary>
     public void HandleDashInput(Vector3 direction)
     {
-        // Can only dash from Free state and if dash is off cooldown
-        if (State != CombatState.Free) return;
+        if (State == CombatState.Dead) return;
+        if (State == CombatState.Dashing) return;
         if (_dash == null || !_dash.CanDash) return;
 
-        State = CombatState.Dashing;
-        _attackBuffered = false;
-        _inComboWindow = false;
-        _comboStep = 0;
+        if (State == CombatState.Attacking)
+        {
+            _hitbox.Deactivate();
+            _comboStep = 0;
+            _attackBuffered = false;
+            _inComboWindow = false;
+            _currentAttack = null;
+            _isVitalThrusting = false;
+        }
 
+        State = CombatState.Dashing;
         _dash.Start(direction);
+        _playback.Travel("Idle");
+        GD.Print("[Combat] Dash started");
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  STATE TRANSITIONS
+    //  ATTACK EXECUTION
     // ══════════════════════════════════════════════════════════════════
 
     private void StartAttack(int step)
@@ -215,36 +280,45 @@ public class PlayerCombat
         _comboStep = step;
         _attackBuffered = false;
         _inComboWindow = false;
+        _isParryActive = false;
 
         _currentAttack = _weapon?.GetAttack(step);
 
-        string animState = step switch
+        string animName = step switch
         {
             0 => "Attack1",
             1 => "Attack2",
+            2 => "Attack3",
             _ => "Attack1"
         };
-        _playback.Travel(animState);
 
-        string name = _currentAttack?.AttackName ?? $"Attack{step + 1}";
-        GD.Print($"[Combat] {name} (step {step + 1}/{MaxComboSteps})");
+        _playback.Travel(animName);
+        GD.Print($"[Combat] Attack step {step + 1} ({_currentAttack?.AttackName ?? "fallback"})");
     }
 
     private void StartVitalThrust()
     {
         State = CombatState.Attacking;
-        _isVitalThrusting = true;
         _comboStep = 0;
         _attackBuffered = false;
         _inComboWindow = false;
+        _isParryActive = false;
+        _isVitalThrusting = true;
         _vitalThrustReady = false;
 
         _currentAttack = _weapon?.VitalThrustAttack;
+        _playback.Travel("VitalThrust");
 
-        // Use Attack2 animation as placeholder until a proper thrust animation exists
-        _playback.Travel("Attack2");
-        GD.Print("[Combat] VITAL THRUST!");
+        // Sparkle stays on during the thrust — it's the visual payoff
+        // It will be turned off in OnAttackAnimationFinished or if
+        // VitalThrustUnloaded fires
+
+        GD.Print("[Combat] VITAL THRUST fired!");
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  STATE TRANSITIONS
+    // ══════════════════════════════════════════════════════════════════
 
     private void EnterParry()
     {
@@ -257,23 +331,20 @@ public class PlayerCombat
         GD.Print("[Combat] Parry started");
     }
 
-    /// <summary>
-    /// Cancel the current attack and immediately enter parry.
-    /// Deactivates the hitbox, stops the trail, resets combo state,
-    /// then transitions to the parry animation.
-    /// </summary>
     private void CancelAttackIntoParry()
     {
-        // Clean up the attack we're interrupting
         _hitbox.Deactivate();
-        _trail?.StopEmitting();
         _comboStep = 0;
         _attackBuffered = false;
         _inComboWindow = false;
         _currentAttack = null;
-        _isVitalThrusting = false;
 
-        // Go directly to parry
+        if (_isVitalThrusting)
+        {
+            _isVitalThrusting = false;
+            StopSparkle();
+        }
+
         State = CombatState.Parrying;
         _isParryActive = false;
         _playback.Travel("Parry");
@@ -288,10 +359,14 @@ public class PlayerCombat
         _isParryActive = false;
         _inComboWindow = false;
         _currentAttack = null;
-        _isVitalThrusting = false;
-        _parryIndicator.Visible = false;
+
+        if (_isVitalThrusting)
+        {
+            _isVitalThrusting = false;
+            StopSparkle();
+        }
+
         _hitbox.Deactivate();
-        _trail?.StopEmitting();
         _playback.Travel("HitReaction");
         GD.Print("[Combat] Stunned");
     }
@@ -304,7 +379,6 @@ public class PlayerCombat
         _isParryActive = false;
         _inComboWindow = false;
         _currentAttack = null;
-        _parryIndicator.Visible = false;
         _playback.Travel("Idle");
     }
 
@@ -312,23 +386,16 @@ public class PlayerCombat
     //  TICK (called every physics frame)
     // ══════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Tick dash (always — cooldown runs regardless of state),
-    /// check dash completion, and count down combo grace window.
-    /// </summary>
     public void Tick(float dt)
     {
-        // Always tick dash — cooldown needs to run even when not dashing
         _dash?.Tick(dt);
 
-        // Check if dash just completed
         if (State == CombatState.Dashing && (_dash == null || !_dash.IsDashing))
         {
             ReturnToFree();
             GD.Print("[Combat] Dash → Free");
         }
 
-        // Combo window countdown
         if (!_inComboWindow) return;
 
         _comboWindowTimer -= dt;
@@ -340,23 +407,13 @@ public class PlayerCombat
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  DAMAGE PIPELINE (called by CharacterBase via PlayerCharacter)
+    //  DAMAGE PIPELINE
     // ══════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Called by CharacterBase.ShouldTakeDamage. Returns false if the
-    /// parry window is active AND the incoming attack is parriable.
-    /// Non-parriable attacks punch through the parry — the player
-    /// takes full damage as punishment for misreading the attack.
-    /// Note: i-frame invincibility during dash is handled by disabling
-    /// the hurtbox entirely — this method won't even be called.
-    /// </summary>
     public bool ShouldTakeDamage(DamageData data)
     {
         if (State == CombatState.Parrying && _isParryActive)
         {
-            // Check if the attack source has a parriable flag.
-            // Default to parriable for non-EnemyBase sources (AttackDummy, etc.)
             bool attackIsParriable = true;
             if (data.Source is EnemyBase enemy)
                 attackIsParriable = enemy.IsCurrentAttackParriable;
@@ -367,24 +424,20 @@ public class PlayerCombat
                 return false;
             }
 
-            // Attack not parriable — parry fails, damage goes through
             GD.Print($"[Combat] Parry FAILED — {data.Source?.Name}'s attack is not parriable");
         }
         return true;
     }
 
-    /// <summary>
-    /// Called after damage is applied. Triggers game feel and enters
-    /// stunned state if the hit didn't kill us.
-    /// </summary>
     public void OnDamageTaken(DamageData data, bool survived)
     {
-        // Cancel dash if hit during non-iframe portion
         _dash?.ForceCancel();
 
         ApplyHitStop(FallbackHitStopDuration, FallbackHitStopTimeScale);
         _camera?.Shake(TakeHitShakeIntensity, TakeHitShakeDuration);
-        GameVFX.SpawnScreenFlash(_owner, new Color(1f, 0.1f, 0.1f, 0.25f), 0.1f);
+
+        Game.VFX.GameVFX.Instance?.SpawnScreenFlash(
+            new Color(1f, 0.1f, 0.1f, 0.25f), 0.1f);
 
         GD.Print($"[Combat] Took {data.Amount} damage");
 
@@ -392,13 +445,8 @@ public class PlayerCombat
             EnterStunned();
     }
 
-    /// <summary>
-    /// Called when health reaches zero. Plays death, disengages lock-on.
-    /// EventBus.EntityDied is fired by CharacterBase — not here.
-    /// </summary>
     public void OnDeath()
     {
-        // Cancel dash — re-enable hurtbox safety
         _dash?.ForceCancel();
 
         State = CombatState.Dead;
@@ -408,10 +456,14 @@ public class PlayerCombat
         _inComboWindow = false;
         _currentAttack = null;
         _vitalThrustReady = false;
-        _isVitalThrusting = false;
-        _parryIndicator.Visible = false;
+
+        if (_isVitalThrusting)
+        {
+            _isVitalThrusting = false;
+            StopSparkle();
+        }
+
         _hitbox.Deactivate();
-        _trail?.StopEmitting();
         _playback.Travel("Death");
         GD.Print("[Combat] Dead");
 
@@ -426,21 +478,13 @@ public class PlayerCombat
         ApplyHitStop(FallbackHitStopDuration, FallbackHitStopTimeScale);
         _camera?.Shake(DealHitShakeIntensity, DealHitShakeDuration);
 
-        var parryPos = _owner.GlobalPosition + new Vector3(0f, 1.2f, 0f);
-        GameVFX.SpawnParryImpact(_owner, parryPos);
-
         EventBus.Instance?.EmitParrySucceeded(data);
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  HIT CONNECTED (wired to Hitbox.HitConnected event)
+    //  HIT CONNECTED
     // ══════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Called when the player's sword hitbox connects with a target.
-    /// Game feel values come from the current AttackData, falling back
-    /// to the flat defaults when no weapon is assigned.
-    /// </summary>
     public void OnHitConnected(DamageData data)
     {
         float stopDur = _currentAttack?.HitStopDuration ?? FallbackHitStopDuration;
@@ -450,34 +494,30 @@ public class PlayerCombat
 
         ApplyHitStop(stopDur, stopScale);
         _camera?.Shake(shakeStr, shakeDur);
-        GameVFX.SpawnHitImpact(_owner, data.HitPosition, data.KnockbackDirection);
 
         EventBus.Instance?.EmitHitLanded(data);
     }
 
     // ══════════════════════════════════════════════════════════════════
     //  ANIMATION CALLBACKS
-    //  (called by method call tracks via PlayerCharacter routing)
     // ══════════════════════════════════════════════════════════════════
 
     public void OnAttackHitboxActivate()
     {
         _hitbox.Activate(_currentAttack);
-        _trail?.StartEmitting();
     }
 
     public void OnAttackHitboxDeactivate()
     {
         _hitbox.Deactivate();
-        _trail?.StopEmitting();
     }
 
     public void OnAttackAnimationFinished()
     {
-        // Vital thrust is a terminal attack — no combo chain
         if (_isVitalThrusting)
         {
             _isVitalThrusting = false;
+            StopSparkle();
             ReturnToFree();
             GD.Print("[Combat] Vital thrust complete → Free");
             return;
@@ -502,20 +542,84 @@ public class PlayerCombat
     public void OnParryWindowOpen()
     {
         _isParryActive = true;
-        _parryIndicator.Visible = true;
         GD.Print("[Combat] Parry window OPEN");
     }
 
     public void OnParryWindowClose()
     {
         _isParryActive = false;
-        _parryIndicator.Visible = false;
         GD.Print("[Combat] Parry window CLOSED");
     }
 
     public void OnParryAnimationFinished() => ReturnToFree();
 
     public void OnStunAnimationFinished() => ReturnToFree();
+
+    // ══════════════════════════════════════════════════════════════════
+    //  VITAL SPARKLE CONTROL
+    // ══════════════════════════════════════════════════════════════════
+
+    private void StartSparkle()
+    {
+        if (_vitalSparkle != null)
+            _vitalSparkle.Emitting = true;
+
+        if (_vitalSparkleLight != null)
+            _vitalSparkleLight.LightEnergy = 3f;
+    }
+
+    private void StopSparkle()
+    {
+        if (_vitalSparkle != null)
+            _vitalSparkle.Emitting = false;
+
+        if (_vitalSparkleLight != null)
+            _vitalSparkleLight.LightEnergy = 0f;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SPARKLE HELPERS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Scale curve: stars pop in at full size then shrink to nothing.
+    /// Creates the classic anime sparkle "flash and fade" feel.
+    /// </summary>
+    private static CurveTexture MakeScaleCurve()
+    {
+        var curve = new Curve();
+        // Pop in at full scale
+        curve.AddPoint(new Vector2(0f, 1f));
+        // Hold briefly
+        curve.AddPoint(new Vector2(0.2f, 1f));
+        // Shrink to nothing
+        curve.AddPoint(new Vector2(1f, 0f));
+
+        var tex = new CurveTexture();
+        tex.Curve = curve;
+        return tex;
+    }
+
+    /// <summary>
+    /// Color ramp: white-gold core → golden → transparent.
+    /// The blue-white start gives the "hot" anime sparkle look,
+    /// fading through gold to match the vital system's color language.
+    /// </summary>
+    private static GradientTexture1D MakeSparkleRamp()
+    {
+        var gradient = new Gradient();
+        gradient.Colors = new[]
+        {
+            new Color(1f, 1f, 1f, 1f),         // White-hot core
+            new Color(1f, 0.9f, 0.5f, 0.9f),   // Golden midlife
+            new Color(1f, 0.7f, 0.2f, 0f)      // Fade out warm
+        };
+        gradient.Offsets = new[] { 0f, 0.3f, 1f };
+
+        var tex = new GradientTexture1D();
+        tex.Gradient = gradient;
+        return tex;
+    }
 
     // ══════════════════════════════════════════════════════════════════
     //  GAME FEEL
