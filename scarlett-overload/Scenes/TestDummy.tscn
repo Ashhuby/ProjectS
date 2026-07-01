@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c3fxxio656dk4"]
 
-[ext_resource type="Script" uid="uid://ch4jhhtkf5byu" path="res://Scripts/TestDummy.cs" id="1_1ms7j"]
-[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="2_ub5mc"]
+[ext_resource type="Script" uid="uid://ch4jhhtkf5byu" path="res://Debug/TestDummy.cs" id="1_1ms7j"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Combat/Hurtbox.cs" id="2_ub5mc"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_cxh4n"]
 radius = 0.4

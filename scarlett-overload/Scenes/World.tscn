@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://bviwb2b6na85l"]
 
 [ext_resource type="PackedScene" uid="uid://b68krturt83vx" path="res://Scenes/PlayerCharacter.tscn" id="1_5cjrv"]
-[ext_resource type="Script" uid="uid://d27s5qyp7hums" path="res://Scripts/CameraController.cs" id="2_j0p05"]
-[ext_resource type="Script" uid="uid://df1fvdsj37wtd" path="res://Scripts/UI/PlayerHealthBar.cs" id="3_y7y61"]
+[ext_resource type="Script" uid="uid://d27s5qyp7hums" path="res://Camera/CameraController.cs" id="2_j0p05"]
+[ext_resource type="Script" uid="uid://df1fvdsj37wtd" path="res://UI/PlayerHealthBar.cs" id="3_y7y61"]
 [ext_resource type="PackedScene" uid="uid://c3fxxio656dk4" path="res://Scenes/TestDummy.tscn" id="4_gjpho"]
-[ext_resource type="Script" uid="uid://c88x662mn25wu" path="res://Scripts/VitalCompass.cs" id="4_y7y61"]
+[ext_resource type="Script" uid="uid://c88x662mn25wu" path="res://UI/VitalCompass.cs" id="4_y7y61"]
 [ext_resource type="PackedScene" uid="uid://df8yednhkj24i" path="res://Scenes/AttackDummy.tscn" id="5_p70al"]
 [ext_resource type="PackedScene" uid="uid://cgubsrm4pra8u" path="res://Scenes/Wolf.tscn" id="7_y7y61"]
 

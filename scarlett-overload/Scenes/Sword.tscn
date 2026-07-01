@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b8077wdh1243"]
 
 [ext_resource type="PackedScene" uid="uid://800ic5tbcegf" path="res://Assets/Models/Sword.glb" id="1_suca6"]
-[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="2_223a5"]
+[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Combat/Hitbox.cs" id="2_223a5"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_suca6"]
 size = Vector3(0.095458984, 0.9944458, 0.097091675)
@@ -18,5 +18,5 @@ collision_mask = 16
 script = ExtResource("2_223a5")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Hitbox" unique_id=1714146282]
-transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.07182227, 0.50617963, -0.0009231566)
+transform = Transform3D(1.35, 0, 0, 0, 1.35, 0, 0, 0, 1.35, 0.07182227, 0.39870793, -0.0009231566)
 shape = SubResource("BoxShape3D_suca6")

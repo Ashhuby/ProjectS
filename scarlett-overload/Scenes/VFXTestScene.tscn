@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dmy4438ki41wp"]
 
-[ext_resource type="Script" uid="uid://dk0d2iejk73q4" path="res://Scripts/VFXTestScene.cs" id="1_qjj1f"]
+[ext_resource type="Script" uid="uid://dk0d2iejk73q4" path="res://Debug/VFXTestScene.cs" id="1_qjj1f"]
 
 [node name="VFXTestScene" type="Node3D" unique_id=1039194085]
 script = ExtResource("1_qjj1f")

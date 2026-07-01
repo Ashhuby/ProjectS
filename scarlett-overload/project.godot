@@ -21,6 +21,7 @@ run/max_fps=60
 EventBus="*uid://dhli1kef3o6ry"
 GameManager="*uid://dc2c7lkbfwnuk"
 AggressionManager="*uid://bcg2t4lq5wwqu"
+GameVfx="*uid://b6rs0m51bwlsj"
 
 [display]
 
@@ -33,6 +34,10 @@ window/stretch/aspect="keep_height"
 [dotnet]
 
 project/assembly_name="ScarlettOverload"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/anthonyec.camera_preview/plugin.cfg", "res://addons/project_time_tracker/plugin.cfg", "res://addons/runtime_debug_tools/plugin.cfg")
 
 [global_group]
 

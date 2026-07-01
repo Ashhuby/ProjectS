@@ -1,11 +1,12 @@
 [gd_scene format=3 uid="uid://jvrdo8bfojr6"]
 
-[ext_resource type="Script" uid="uid://cfd4vywlwht8t" path="res://Scripts/EnemyBase.cs" id="1_xeo28"]
-[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="2_kpr8r"]
-[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="3_1exfc"]
+[ext_resource type="Script" uid="uid://cfd4vywlwht8t" path="res://Characters/Enemies/EnemyBase.cs" id="1_xeo28"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Combat/Hurtbox.cs" id="2_kpr8r"]
+[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Combat/Hitbox.cs" id="3_1exfc"]
 [ext_resource type="Resource" uid="uid://gt2cbkbjncr0" path="res://Resources/Enemies/BasicEnemyAI.tres" id="4_config"]
 [ext_resource type="Resource" uid="uid://bfnh2ht2q5tao" path="res://Resources/Characters/EnemyStats.tres" id="5_stats"]
-[ext_resource type="PackedScene" uid="uid://lhhefifhrrn1" path="res://Assets/Models/Wolf.glb" id="6_mo1ky"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1exfc"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0mard"]
 
@@ -19,8 +20,9 @@ script = ExtResource("1_xeo28")
 Config = ExtResource("4_config")
 Stats = ExtResource("5_stats")
 
-[node name="Wolf" parent="." unique_id=748782127 instance=ExtResource("6_mo1ky")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=524680002]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CapsuleMesh_1exfc")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=447423823]
 transform = Transform3D(0.9, 0, 0, 0, -3.934025e-08, -0.9, 0, 0.9, -3.934025e-08, 0, 0.42830902, 0)

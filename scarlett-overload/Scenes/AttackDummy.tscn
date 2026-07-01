@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://df8yednhkj24i"]
 
-[ext_resource type="Script" uid="uid://bbkh3lb2bn37h" path="res://Scripts/AttackDummy.cs" id="1_tqgcf"]
-[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="2_va5ks"]
-[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Scripts/Hitbox.cs" id="3_bfs4p"]
+[ext_resource type="Script" uid="uid://bbkh3lb2bn37h" path="res://Debug/AttackDummy.cs" id="1_tqgcf"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Combat/Hurtbox.cs" id="2_va5ks"]
+[ext_resource type="Script" uid="uid://d18xxrn3yudav" path="res://Combat/Hitbox.cs" id="3_bfs4p"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_kique"]
 radius = 0.4

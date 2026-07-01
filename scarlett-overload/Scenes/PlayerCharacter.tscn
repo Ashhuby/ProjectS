@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://b68krturt83vx"]
 
-[ext_resource type="Script" uid="uid://c4rrw5lw1sq5a" path="res://Scripts/PlayerCharacter.cs" id="1_v7sut"]
+[ext_resource type="Script" uid="uid://c4rrw5lw1sq5a" path="res://Characters/Player/PlayerCharacter.cs" id="1_v7sut"]
 [ext_resource type="PackedScene" uid="uid://dtc4tgkkf8e3i" path="res://Assets/Models/Player.glb" id="2_5gnj7"]
 [ext_resource type="Resource" uid="uid://cadai8vmnx5tc" path="res://Resources/Weapons/Rapier.tres" id="2_r4x55"]
 [ext_resource type="PackedScene" uid="uid://b8077wdh1243" path="res://Scenes/Sword.tscn" id="3_2getf"]
 [ext_resource type="Resource" uid="uid://bciudcgs8qlpr" path="res://Resources/Player/DashStats.tres" id="3_id6tp"]
-[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Scripts/Hurtbox.cs" id="4_mdaju"]
+[ext_resource type="Script" uid="uid://qurhm3d2yv2m" path="res://Combat/Hurtbox.cs" id="4_mdaju"]
 [ext_resource type="Resource" uid="uid://c0a1b58qqj427" path="res://Resources/Player/CharacterStats.tres" id="4_wnmxb"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_5gnj7"]
@@ -33,6 +33,9 @@ animation = &"Parry"
 
 [sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_5gnj7"]
 animation = &"StartMove"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_cl0yw"]
+animation = &"VitalThrust"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_2getf"]
 advance_mode = 2
@@ -123,6 +126,18 @@ xfade_time = 0.1
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_1xtgc"]
 xfade_time = 0.1
 
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_xa0xp"]
+xfade_time = 0.05
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_ukm61"]
+xfade_time = 0.15
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_efii0"]
+xfade_time = 0.05
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_8w4v4"]
+xfade_time = 0.05
+
 [sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_wnmxb"]
 states/Attack1/node = SubResource("AnimationNodeAnimation_mdaju")
 states/Attack1/position = Vector2(1012, 485)
@@ -142,8 +157,10 @@ states/Parry/position = Vector2(665, -138)
 states/Start/position = Vector2(196, 106)
 states/StartMove/node = SubResource("AnimationNodeAnimation_5gnj7")
 states/StartMove/position = Vector2(314, 485)
-transitions = ["Start", "Idle", SubResource("AnimationNodeStateMachineTransition_2getf"), "Idle", "StartMove", SubResource("AnimationNodeStateMachineTransition_mdaju"), "StartMove", "MoveForward", SubResource("AnimationNodeStateMachineTransition_r4x55"), "MoveForward", "Idle", SubResource("AnimationNodeStateMachineTransition_id6tp"), "StartMove", "Idle", SubResource("AnimationNodeStateMachineTransition_5gnj7"), "Idle", "Attack1", SubResource("AnimationNodeStateMachineTransition_wnmxb"), "StartMove", "Attack1", SubResource("AnimationNodeStateMachineTransition_k5f8r"), "MoveForward", "Attack1", SubResource("AnimationNodeStateMachineTransition_cl0yw"), "Attack1", "Attack2", SubResource("AnimationNodeStateMachineTransition_vjvuw"), "Attack1", "Idle", SubResource("AnimationNodeStateMachineTransition_uvrlg"), "Attack2", "Idle", SubResource("AnimationNodeStateMachineTransition_fkgr2"), "Attack1", "HitReaction", SubResource("AnimationNodeStateMachineTransition_qg2eu"), "Attack2", "HitReaction", SubResource("AnimationNodeStateMachineTransition_lxmjj"), "Idle", "HitReaction", SubResource("AnimationNodeStateMachineTransition_uk32v"), "StartMove", "HitReaction", SubResource("AnimationNodeStateMachineTransition_otte4"), "MoveForward", "HitReaction", SubResource("AnimationNodeStateMachineTransition_oqds6"), "HitReaction", "Idle", SubResource("AnimationNodeStateMachineTransition_xnxt3"), "Idle", "Parry", SubResource("AnimationNodeStateMachineTransition_c8bqh"), "StartMove", "Parry", SubResource("AnimationNodeStateMachineTransition_vcjqu"), "MoveForward", "Parry", SubResource("AnimationNodeStateMachineTransition_n8cba"), "Parry", "Idle", SubResource("AnimationNodeStateMachineTransition_0eqq0"), "Parry", "HitReaction", SubResource("AnimationNodeStateMachineTransition_ildqw"), "Idle", "Death", SubResource("AnimationNodeStateMachineTransition_ba1h1"), "StartMove", "Death", SubResource("AnimationNodeStateMachineTransition_tokpn"), "MoveForward", "Death", SubResource("AnimationNodeStateMachineTransition_nufml"), "Attack1", "Death", SubResource("AnimationNodeStateMachineTransition_3euba"), "Attack2", "Death", SubResource("AnimationNodeStateMachineTransition_nev3s"), "Parry", "Death", SubResource("AnimationNodeStateMachineTransition_jh5di"), "HitReaction", "Death", SubResource("AnimationNodeStateMachineTransition_1xtgc")]
-graph_offset = Vector2(222, -310)
+states/VitalThrust/node = SubResource("AnimationNodeAnimation_cl0yw")
+states/VitalThrust/position = Vector2(385, -209)
+transitions = ["Start", "Idle", SubResource("AnimationNodeStateMachineTransition_2getf"), "Idle", "StartMove", SubResource("AnimationNodeStateMachineTransition_mdaju"), "StartMove", "MoveForward", SubResource("AnimationNodeStateMachineTransition_r4x55"), "MoveForward", "Idle", SubResource("AnimationNodeStateMachineTransition_id6tp"), "StartMove", "Idle", SubResource("AnimationNodeStateMachineTransition_5gnj7"), "Idle", "Attack1", SubResource("AnimationNodeStateMachineTransition_wnmxb"), "StartMove", "Attack1", SubResource("AnimationNodeStateMachineTransition_k5f8r"), "MoveForward", "Attack1", SubResource("AnimationNodeStateMachineTransition_cl0yw"), "Attack1", "Attack2", SubResource("AnimationNodeStateMachineTransition_vjvuw"), "Attack1", "Idle", SubResource("AnimationNodeStateMachineTransition_uvrlg"), "Attack2", "Idle", SubResource("AnimationNodeStateMachineTransition_fkgr2"), "Attack1", "HitReaction", SubResource("AnimationNodeStateMachineTransition_qg2eu"), "Attack2", "HitReaction", SubResource("AnimationNodeStateMachineTransition_lxmjj"), "Idle", "HitReaction", SubResource("AnimationNodeStateMachineTransition_uk32v"), "StartMove", "HitReaction", SubResource("AnimationNodeStateMachineTransition_otte4"), "MoveForward", "HitReaction", SubResource("AnimationNodeStateMachineTransition_oqds6"), "HitReaction", "Idle", SubResource("AnimationNodeStateMachineTransition_xnxt3"), "Idle", "Parry", SubResource("AnimationNodeStateMachineTransition_c8bqh"), "StartMove", "Parry", SubResource("AnimationNodeStateMachineTransition_vcjqu"), "MoveForward", "Parry", SubResource("AnimationNodeStateMachineTransition_n8cba"), "Parry", "Idle", SubResource("AnimationNodeStateMachineTransition_0eqq0"), "Parry", "HitReaction", SubResource("AnimationNodeStateMachineTransition_ildqw"), "Idle", "Death", SubResource("AnimationNodeStateMachineTransition_ba1h1"), "StartMove", "Death", SubResource("AnimationNodeStateMachineTransition_tokpn"), "MoveForward", "Death", SubResource("AnimationNodeStateMachineTransition_nufml"), "Attack1", "Death", SubResource("AnimationNodeStateMachineTransition_3euba"), "Attack2", "Death", SubResource("AnimationNodeStateMachineTransition_nev3s"), "Parry", "Death", SubResource("AnimationNodeStateMachineTransition_jh5di"), "HitReaction", "Death", SubResource("AnimationNodeStateMachineTransition_1xtgc"), "Idle", "VitalThrust", SubResource("AnimationNodeStateMachineTransition_xa0xp"), "VitalThrust", "Idle", SubResource("AnimationNodeStateMachineTransition_ukm61"), "VitalThrust", "Death", SubResource("AnimationNodeStateMachineTransition_efii0"), "VitalThrust", "HitReaction", SubResource("AnimationNodeStateMachineTransition_8w4v4")]
+graph_offset = Vector2(109, -360)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_2getf"]
 
@@ -157,10 +174,10 @@ Stats = ExtResource("4_wnmxb")
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0.752, 0)
 shape = SubResource("CapsuleShape3D_5gnj7")
 
-[node name="Player" parent="." unique_id=1265781344 instance=ExtResource("2_5gnj7")]
+[node name="Player" parent="." unique_id=1860435717 instance=ExtResource("2_5gnj7")]
 
-[node name="BoneAttachment3D" type="BoneAttachment3D" parent="Player/BodyRig/Skeleton3D" parent_id_path=PackedInt32Array(1265781344, 1283037426) index="5" unique_id=2120186752]
-transform = Transform3D(-0.2285812, -0.9726326, 0.041667033, 0.9613669, -0.23226261, -0.14773953, 0.15337397, 0.0062867557, 0.9881479, -0.58736527, 1.5346909, -0.118236765)
+[node name="BoneAttachment3D" type="BoneAttachment3D" parent="Player/BodyRig/Skeleton3D" parent_id_path=PackedInt32Array(1860435717, 463776242) index="5" unique_id=2120186752]
+transform = Transform3D(-0.22858125, -0.97263277, 0.041666977, 0.9613669, -0.23226273, -0.14773971, 0.15337425, 0.0062867263, 0.98814833, -0.58736527, 1.5346909, -0.11823669)
 bone_name = "hand.R"
 bone_idx = 29
 
